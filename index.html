@@ -466,43 +466,10 @@ function isInBuildingShadow(pt, building, sunAlt, sunAz) {
 }
 
 // ── DRAW SHADOW POLYGONS ─────────────────────────────────────────
-function drawBuildingShadows(buildings, sunAlt, sunAz) {
+function drawBuildingShadows() {
+  // Disabled for performance — no polygon rendering
   buildingPolygons.forEach(function(l) { map.removeLayer(l); });
   buildingPolygons = [];
-  if (sunAlt <= 0.017) return;
-
-  var shadowLen0 = 15 / Math.tan(sunAlt); // ref shadow length
-  if (shadowLen0 > 250) return; // too long, visual noise
-
-  var stdAz = sunAz + Math.PI;
-  var shadowStdAz = stdAz + Math.PI;
-
-  buildings.forEach(function(b) {
-    var shadowLen = Math.min(b.height / Math.tan(sunAlt), 200);
-    var dxM =  Math.sin(shadowStdAz) * shadowLen;
-    var dyM =  Math.cos(shadowStdAz) * shadowLen;
-    var dLat = mToLat(dyM);
-    var dLng = mToLng(dxM, b.clat);
-
-    // Convex hull-ish: original + extruded
-    var pts = b.polygon.concat(b.polygon.map(function(p) {
-      return { lat: p.lat + dLat, lng: p.lng + dLng };
-    }));
-    var ll = pts.map(function(p) { return [p.lat, p.lng]; });
-
-    buildingPolygons.push(
-      L.polygon(ll, {
-        color: "transparent", fillColor: "#203060",
-        fillOpacity: 0.20, weight: 0, className: "building-shadow"
-      }).addTo(map)
-    );
-    buildingPolygons.push(
-      L.polygon(b.polygon.map(function(p) { return [p.lat, p.lng]; }), {
-        color: "#5060a0", fillColor: "#7080b8",
-        fillOpacity: 0.30, weight: 0.5
-      }).addTo(map)
-    );
-  });
 }
 
 // ── MAIN RECALCULATE ─────────────────────────────────────────────
@@ -515,6 +482,8 @@ function recalcWithShadows() {
   var status = document.getElementById("shadow-status");
   var prog   = document.getElementById("shadow-progress");
 
+  // Remove any leftover building polygons
+  buildingPolygons.forEach(function(l){map.removeLayer(l);}); buildingPolygons=[];
   btn.classList.add("loading");
   btn.textContent = "Calculant...";
   status.className = "loading";
@@ -535,8 +504,6 @@ function recalcWithShadows() {
     var date  = new Date(2025, month, 15, hour, 0, 0);
     var sun   = SunCalc.getPosition(date, 41.3888, 2.159);
 
-    // Draw shadow polygons on map
-    drawBuildingShadows(buildings, sun.altitude, sun.azimuth);
     if (prog) prog.style.width = "70%";
 
     var nSol = 0, nOmbraEdifici = 0, nOmbraOrient = 0, nNit = 0;
