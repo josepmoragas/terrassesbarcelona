@@ -454,7 +454,7 @@ function parseOSMBuildings(osmData) {
       clng: clng / polygon.length
     });
   });
-  return buildings;
+  return { buildings: buildings, coveredSeating: coveredSeating };
 }
 
 // ── GEOMETRY ────────────────────────────────────────────────────
