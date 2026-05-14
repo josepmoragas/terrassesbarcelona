@@ -650,13 +650,13 @@ function recalcWithShadows() {
       n: bounds.getNorth(), e: bounds.getEast()
     };
     if (prog) prog.style.width = "55%";
-    status.innerHTML = (fromCache ? "&#x1F4BE; Cache" : "&#x1F4E1; Descarregat") +
-      " &mdash; <b>" + buildings.length + "</b> edificis";
-
     // Extreure buildings i covered venues del resultat
     var buildings          = (result && result.buildings)     ? result.buildings     : (result || []);
     var coveredVenuesLocal = (result && result.coveredSeating) ? result.coveredSeating : [];
     coveredVenues = coveredVenuesLocal;
+
+    status.innerHTML = (fromCache ? "&#x1F4BE; Cache" : "&#x1F4E1; Descarregat") +
+      " &mdash; <b>" + buildings.length + "</b> edificis";
 
     var hour  = parseInt(document.getElementById("hour-slider").value);
     var month = parseInt(document.getElementById("month-select").value);
