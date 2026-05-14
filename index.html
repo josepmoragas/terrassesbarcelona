@@ -203,6 +203,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
             <div class="legend-item"><div class="legend-dot" style="background:#ffcc00;border-color:#cc9900"></div><span><b>Sol directe</b></span></div>
             <div class="legend-item"><div class="legend-dot" style="background:#ff8c00;border-color:#cc6600"></div><span><b>Sol parcial</b> (alba/capvespre)</span></div>
             <div class="legend-item"><div class="legend-dot" style="background:#22aa44;border-color:#116622"></div><span><b>Ombra edifici</b> (OSM)</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#9b59b6;border-color:#6c3483"></div><span><b>Toldo/Cobert</b> (OSM)</span></div>
             <div class="legend-item"><div class="legend-dot" style="background:#aaaaaa;border-color:#777777"></div><span><b>Pendent</b> (prem Recalcular)</span></div>
             <div class="legend-item"><div class="legend-dot" style="background:#222244;border-color:#000020"></div><span><b>Nit</b></span></div>
             <hr style="margin:5px 0;border-color:#ddd">
@@ -219,17 +220,28 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
               <strong>Total terrasses:</strong> 6.899<br>
               <span id="stat-sol">Amb sol: &mdash;</span><br>
               <span id="stat-ombra">A l'ombra: &mdash;</span><br>
+              <span id="stat-toldo">Amb toldo (OSM): &mdash;</span><br>
               <span id="stat-nit">Nit: &mdash;</span>
             </div>
           </div>
         </div>
 
         <div class="panel">
-          <div class="panel-header">&#x1F50D; Filtre per barri</div>
+          <div class="panel-header">&#x1F50D; Filtres</div>
           <div class="panel-body">
+            <div class="xp-slider-wrap"><label>Barri:</label></div>
             <select id="district-filter" class="xp-select">
               <option value="">— Tots els barris —</option>
             </select>
+            <div class="xp-slider-wrap" style="margin-top:6px"><label>Sombra pr&ograve;pia (OSM):</label></div>
+            <select id="filter-toldo" class="xp-select">
+              <option value="tots">— Tots —</option>
+              <option value="amb">Nom&eacute;s amb toldo/cobert</option>
+              <option value="sense">Nom&eacute;s sense toldo</option>
+            </select>
+            <div style="font-size:10px;color:#888;margin-top:2px;line-height:1.4">
+              Basat en el tag <code>outdoor_seating:covered</code> d'OSM. Cobertura parcial de dades.
+            </div>
           </div>
         </div>
 
@@ -267,12 +279,13 @@ const RAW_DATA = [[41.41023,2.17451,"AV. GAUDI, 66","la Sagrada Família",4,16],
 // Overpass multi-mirror amb fallback + càlcul d'ombres corregit
 // ═══════════════════════════════════════════════════════════════
 
-var buildingCache   = {};
+var buildingCache    = {};
 var buildingPolygons = [];
-var isCalculating   = false;
-var pendingRecalc   = false;
-var lastViewportKey = null;
-var buildingsLoaded = false;  // true after first successful load
+var coveredVenues    = [];    // locals OSM amb outdoor seating cobert
+var isCalculating    = false;
+var pendingRecalc    = false;
+var lastViewportKey  = null;
+var buildingsLoaded  = false;
 
 // Overpass mirrors (proven CORS-enabled endpoints)
 var OVERPASS_MIRRORS = [
@@ -288,8 +301,15 @@ function buildOverpassQuery(bounds) {
   var w = bounds.getWest().toFixed(5);
   var n = bounds.getNorth().toFixed(5);
   var e = bounds.getEast().toFixed(5);
+  var bbox = s + "," + w + "," + n + "," + e;
+  // Union: edificis + nodes/ways amb info de outdoor seating cobert
   return "[out:json][timeout:30];\n" +
-    "way[\"building\"](" + s + "," + w + "," + n + "," + e + ");\n" +
+    "(" +
+      "way[\"building\"](" + bbox + ");" +
+      "nwr[\"outdoor_seating\"=\"covered\"](" + bbox + ");" +
+      "nwr[\"outdoor_seating:covered\"=\"yes\"](" + bbox + ");" +
+      "nwr[\"outdoor_seating:covered\"=\"permanent\"](" + bbox + ");" +
+    ");\n" +
     "(._;>;);\n" +
     "out body qt;";
 }
@@ -355,8 +375,9 @@ function fetchBuildings(bounds, onDone, onError) {
   var query = buildOverpassQuery(bounds);
   fetchOverpass(query, function(data) {
     var buildings = parseOSMBuildings(data);
-    buildingCache[key] = buildings;
-    onDone(buildings, false);
+    var result = { buildings: buildings, coveredSeating: coveredSeating };
+    buildingCache[key] = result;
+    onDone(result, false);
   }, onError);
 }
 
@@ -368,11 +389,46 @@ function parseOSMBuildings(osmData) {
   });
 
   var buildings = [];
+  var coveredSeating = []; // locals amb outdoor seating cobert (toldo/cobert)
+
   (osmData.elements || []).forEach(function(el) {
-    if (el.type !== "way" || !el.tags || !el.tags.building) return;
+    if (!el.tags) return;
+
+    // ── Locals amb outdoor seating cobert ──────────────────────
+    var isCovered = (
+      el.tags["outdoor_seating"] === "covered" ||
+      el.tags["outdoor_seating:covered"] === "yes" ||
+      el.tags["outdoor_seating:covered"] === "permanent"
+    );
+    if (isCovered) {
+      var lat, lng;
+      if (el.type === "node") {
+        lat = el.lat; lng = el.lon;
+      } else if (el.type === "way" && el.nodes && el.nodes.length > 0) {
+        // Centroid del way
+        var clat2 = 0, clng2 = 0, cnt = 0;
+        el.nodes.forEach(function(nid) {
+          var n = nodes[nid];
+          if (n) { clat2 += n.lat; clng2 += n.lng; cnt++; }
+        });
+        if (cnt > 0) { lat = clat2/cnt; lng = clng2/cnt; }
+      }
+      if (lat && lng) {
+        coveredSeating.push({
+          id: el.id,
+          lat: lat,
+          lng: lng,
+          name: el.tags.name || el.tags["addr:street"] || "",
+          tags: el.tags
+        });
+      }
+    }
+
+    // ── Edificis ────────────────────────────────────────────────
+    if (el.type !== "way" || !el.tags.building) return;
     if (!el.nodes || el.nodes.length < 4) return;
 
-    var height = 10; // default
+    var height = 10;
     if (el.tags["height"]) {
       var h = parseFloat(el.tags["height"]);
       if (!isNaN(h) && h > 0) height = h;
@@ -380,7 +436,7 @@ function parseOSMBuildings(osmData) {
       var lv = parseFloat(el.tags["building:levels"]);
       if (!isNaN(lv) && lv > 0) height = lv * 3.2;
     } else if (el.tags["building"] === "yes") {
-      height = 12; // Barcelona Eixample typical ~4 floors
+      height = 12;
     }
 
     var polygon = el.nodes.map(function(nid) { return nodes[nid]; })
@@ -472,6 +528,100 @@ function drawBuildingShadows() {
   buildingPolygons = [];
 }
 
+// ── RECOLORAR PUNTS (sense nova crida Overpass) ─────────────────
+// Usa les dades d'edificis i covered venues ja en memòria.
+function recolorPoints() {
+  if (!buildingsLoaded || !loadedBbox) return;
+
+  var hour  = parseInt(document.getElementById("hour-slider").value);
+  var month = parseInt(document.getElementById("month-select").value);
+  var date  = new Date(2025, month, 15, hour, 0, 0);
+  var sun   = SunCalc.getPosition(date, 41.3888, 2.159);
+
+  // Recuperar les dades de la cache del bbox actual
+  var cacheKey = viewportKey(map.getBounds().pad(0.08));
+  // Buscar la cache entry que cobreixi el viewport actual
+  var result = null;
+  for (var k in buildingCache) { result = buildingCache[k]; break; }
+  // Prefer the most recently used key
+  var boundsKey = viewportKey(L.latLngBounds(
+    [loadedBbox.s, loadedBbox.w], [loadedBbox.n, loadedBbox.e]
+  ));
+  if (buildingCache[boundsKey]) result = buildingCache[boundsKey];
+
+  if (!result) return;
+  var buildings          = result.buildings      || result;
+  var coveredVenuesLocal = result.coveredSeating  || coveredVenues || [];
+
+  var filterBarri  = document.getElementById("district-filter").value;
+  var filterToldoEl = document.getElementById("filter-toldo");
+  var filterToldo  = filterToldoEl ? filterToldoEl.value : "tots";
+  var altDeg = sun.altitude * 180 / Math.PI;
+
+  var nSol = 0, nOmbraEdifici = 0, nToldo = 0, nNit = 0;
+
+  allData.forEach(function(d, i) {
+    var mk = markers[i];
+    var show = !filterBarri || d.barri === filterBarri;
+    if (!show) { mk.setStyle({opacity:0,fillOpacity:0}); return; }
+
+    var hasCover = d.hasCover || false;
+    if (!hasCover) {
+      var DIST = 0.00040;
+      for (var vi = 0; vi < coveredVenuesLocal.length; vi++) {
+        var v = coveredVenuesLocal[vi];
+        if (Math.abs(v.lat-d.lat) < DIST && Math.abs(v.lng-d.lng) < DIST*1.3) {
+          hasCover = true; break;
+        }
+      }
+      d.hasCover = hasCover;
+    }
+
+    if (filterToldo === "amb"   && !hasCover) { mk.setStyle({opacity:0,fillOpacity:0}); return; }
+    if (filterToldo === "sense" &&  hasCover) { mk.setStyle({opacity:0,fillOpacity:0}); return; }
+
+    if (altDeg < 0) {
+      d.state="nit"; nNit++;
+      mk.setStyle({fillColor:"#222244",color:"#000020",fillOpacity:0.4,opacity:0.9,radius:3});
+      return;
+    }
+    if (hasCover) {
+      d.state="toldo"; nToldo++;
+      mk.setStyle({fillColor:"#9b59b6",color:"#6c3483",fillOpacity:0.9,opacity:0.9,radius:4.5});
+      return;
+    }
+    var inShadow = false;
+    if (altDeg >= 2) {
+      var pt = {lat:d.lat, lng:d.lng};
+      for (var bi = 0; bi < buildings.length; bi++) {
+        var b = buildings[bi];
+        if (Math.abs(b.clat-d.lat) > 0.004) continue;
+        if (Math.abs(b.clng-d.lng) > 0.005) continue;
+        if (isInBuildingShadow(pt, b, sun.altitude, sun.azimuth)) { inShadow=true; break; }
+      }
+    }
+    if (inShadow) {
+      d.state="ombra_edifici"; nOmbraEdifici++;
+      mk.setStyle({fillColor:"#22aa44",color:"#116622",fillOpacity:0.9,opacity:0.9,radius:4.5});
+    } else if (altDeg < 8) {
+      d.state="parcial"; nSol++;
+      mk.setStyle({fillColor:"#ff8c00",color:"#cc6600",fillOpacity:0.85,opacity:0.9,radius:4});
+    } else {
+      d.state="sol"; nSol++;
+      mk.setStyle({fillColor:"#ffcc00",color:"#cc9900",fillOpacity:0.9,opacity:0.9,radius:5});
+    }
+  });
+
+  // Actualitzar stats
+  document.getElementById("stat-sol").innerHTML    = "Amb sol: <b>"+ nSol.toLocaleString()+"</b>";
+  document.getElementById("stat-ombra").innerHTML  = "Ombra edifici: <b>"+ nOmbraEdifici.toLocaleString()+"</b>";
+  document.getElementById("stat-toldo").innerHTML  = "Amb toldo (OSM): <b>"+ nToldo.toLocaleString()+"</b>";
+  document.getElementById("stat-nit").innerHTML    = "Nit: <b>"+ nNit.toLocaleString()+"</b>";
+  var mesos = ["Gen","Feb","Mar","Abr","Mai","Jun","Jul","Ago","Set","Oct","Nov","Des"];
+  document.getElementById("status-main").textContent =
+    hour+":00h — "+mesos[month]+" (cache)";
+}
+
 // ── MAIN RECALCULATE ─────────────────────────────────────────────
 function recalcWithShadows() {
   if (isCalculating) { pendingRecalc = true; return; }
@@ -493,11 +643,21 @@ function recalcWithShadows() {
   var bounds   = map.getBounds().pad(0.08);
   var cacheKey = viewportKey(bounds);
 
-  fetchBuildings(bounds, function(buildings, fromCache) {
+  fetchBuildings(bounds, function(result, fromCache) {
     buildingsLoaded = true;
+    // Guardar el bbox carregat per evitar recalculs innecessaris en zoom
+    loadedBbox = {
+      s: bounds.getSouth(), w: bounds.getWest(),
+      n: bounds.getNorth(), e: bounds.getEast()
+    };
     if (prog) prog.style.width = "55%";
     status.innerHTML = (fromCache ? "&#x1F4BE; Cache" : "&#x1F4E1; Descarregat") +
       " &mdash; <b>" + buildings.length + "</b> edificis";
+
+    // Extreure buildings i covered venues del resultat
+    var buildings          = (result && result.buildings)     ? result.buildings     : (result || []);
+    var coveredVenuesLocal = (result && result.coveredSeating) ? result.coveredSeating : [];
+    coveredVenues = coveredVenuesLocal;
 
     var hour  = parseInt(document.getElementById("hour-slider").value);
     var month = parseInt(document.getElementById("month-select").value);
@@ -506,8 +666,10 @@ function recalcWithShadows() {
 
     if (prog) prog.style.width = "70%";
 
-    var nSol = 0, nOmbraEdifici = 0, nOmbraOrient = 0, nNit = 0;
+    var nSol = 0, nOmbraEdifici = 0, nToldo = 0, nNit = 0;
     var filterBarri = document.getElementById("district-filter").value;
+    var filterToldoEl = document.getElementById("filter-toldo");
+    var filterToldo = filterToldoEl ? filterToldoEl.value : "tots";
 
     allData.forEach(function(d, i) {
       var mk = markers[i];
@@ -516,15 +678,38 @@ function recalcWithShadows() {
 
       var altDeg = sun.altitude * 180 / Math.PI;
 
-      // Night check
+      // ── Detectar cobertura OSM dins ~40m ─────────────────────
+      var hasCover = false;
+      var DIST = 0.00040;
+      for (var vi = 0; vi < coveredVenuesLocal.length; vi++) {
+        var v = coveredVenuesLocal[vi];
+        if (Math.abs(v.lat - d.lat) < DIST && Math.abs(v.lng - d.lng) < DIST * 1.3) {
+          hasCover = true; break;
+        }
+      }
+      d.hasCover = hasCover;
+
+      // ── Filtre per toldo ──────────────────────────────────────
+      if (filterToldo === "amb"   && !hasCover) { mk.setStyle({opacity:0,fillOpacity:0}); return; }
+      if (filterToldo === "sense" &&  hasCover) { mk.setStyle({opacity:0,fillOpacity:0}); return; }
+
+      // ── Nit ───────────────────────────────────────────────────
       if (altDeg < 0) {
         d.state = "nit"; nNit++;
-        mk.setStyle({ fillColor: "#222244", color: "#000020",
-                      fillOpacity: 0.4, opacity: 0.9, radius: 3 });
+        mk.setStyle({ fillColor:"#222244", color:"#000020",
+                      fillOpacity:0.4, opacity:0.9, radius:3 });
         return;
       }
 
-      // Check building shadows (only if sun is meaningful)
+      // ── Toldo: sempre cobert, independent del sol ─────────────
+      if (hasCover) {
+        d.state = "toldo"; nToldo++;
+        mk.setStyle({ fillColor:"#9b59b6", color:"#6c3483",
+                      fillOpacity:0.9, opacity:0.9, radius:4.5 });
+        return;
+      }
+
+      // ── Ombra d'edifici ───────────────────────────────────────
       var inShadow = false;
       if (altDeg >= 2) {
         var pt = { lat: d.lat, lng: d.lng };
@@ -540,16 +725,16 @@ function recalcWithShadows() {
 
       if (inShadow) {
         d.state = "ombra_edifici"; nOmbraEdifici++;
-        mk.setStyle({ fillColor: "#22aa44", color: "#116622",
-                      fillOpacity: 0.9, opacity: 0.9, radius: 4.5 });
+        mk.setStyle({ fillColor:"#22aa44", color:"#116622",
+                      fillOpacity:0.9, opacity:0.9, radius:4.5 });
       } else if (altDeg < 8) {
         d.state = "parcial"; nSol++;
-        mk.setStyle({ fillColor: "#ff8c00", color: "#cc6600",
-                      fillOpacity: 0.85, opacity: 0.9, radius: 4 });
+        mk.setStyle({ fillColor:"#ff8c00", color:"#cc6600",
+                      fillOpacity:0.85, opacity:0.9, radius:4 });
       } else {
         d.state = "sol"; nSol++;
-        mk.setStyle({ fillColor: "#ffcc00", color: "#cc9900",
-                      fillOpacity: 0.9, opacity: 0.9, radius: 5 });
+        mk.setStyle({ fillColor:"#ffcc00", color:"#cc9900",
+                      fillOpacity:0.9, opacity:0.9, radius:5 });
       }
     });
 
@@ -560,6 +745,8 @@ function recalcWithShadows() {
       "Amb sol: <b>" + nSol.toLocaleString() + "</b>";
     document.getElementById("stat-ombra").innerHTML =
       "Ombra edifici: <b>" + nOmbraEdifici.toLocaleString() + "</b>";
+    document.getElementById("stat-toldo").innerHTML =
+      "Amb toldo (OSM): <b>" + nToldo.toLocaleString() + "</b>";
     document.getElementById("stat-nit").innerHTML =
       "Nit: <b>" + nNit.toLocaleString() + "</b>";
 
@@ -571,9 +758,10 @@ function recalcWithShadows() {
 
     status.className = "ok";
     status.innerHTML =
-      "&#x2705; <b>" + nSol + "</b> amb sol &nbsp;|&nbsp;" +
-      "<b>" + nOmbraEdifici + "</b> ombra edifici &nbsp;|&nbsp;" +
-      "<b>" + nNit + "</b> nit";
+      "&#x2705; <b>" + nSol + "</b> sol &nbsp;|&nbsp;" +
+      "<b>" + nOmbraEdifici + "</b> ombra &nbsp;|&nbsp;" +
+      "<b>" + nToldo + "</b> toldo (OSM) &nbsp;|&nbsp;" +
+      "<b>" + coveredVenuesLocal.length + "</b> locals coberts trobats";
 
     btn.classList.remove("loading");
     btn.innerHTML = "&#x2600;&#xFE0F; Recalcular";
@@ -617,16 +805,31 @@ function fallbackSunOnly() {
 
 // ── VIEWPORT CHANGE LISTENER ─────────────────────────────────────
 var _viewportTimer = null;
+// Bbox de l'últim fetch (en graus). Recalculem només si el viewport
+// actual surt fora d'aquest bbox — el zoom dins la mateixa zona no cal.
+var loadedBbox = null; // {s,w,n,e}
+
+function viewportInsideLoadedBbox() {
+  if (!loadedBbox) return false;
+  var b = map.getBounds();
+  return (b.getSouth() >= loadedBbox.s - 0.001 &&
+          b.getNorth() <= loadedBbox.n + 0.001 &&
+          b.getWest()  >= loadedBbox.w - 0.001 &&
+          b.getEast()  <= loadedBbox.e + 0.001);
+}
+
 function onViewportChange() {
   clearTimeout(_viewportTimer);
   _viewportTimer = setTimeout(function() {
     if (!buildingsLoaded) return;
-    var key = viewportKey(map.getBounds().pad(0.08));
-    if (key !== lastViewportKey) {
-      lastViewportKey = key;
-      recalcWithShadows();
+    // Si el viewport actual cau dins el bbox ja carregat → només recolorar
+    if (viewportInsideLoadedBbox()) {
+      recolorPoints(); // ràpid, sense Overpass
+      return;
     }
-  }, 900);
+    // Si surt del bbox → cal demanar edificis nous
+    recalcWithShadows();
+  }, 600);
 }
 
 function setProgress(pct) {
@@ -690,11 +893,12 @@ var STATE_COLORS = {
   "parcial":      {fill:"#ff8c00", stroke:"#cc6600"},
   "ombra_edifici":{fill:"#22aa44", stroke:"#116622"},
   "ombra":        {fill:"#5b80c0", stroke:"#3a5a9a"},
+  "toldo":        {fill:"#9b59b6", stroke:"#6c3483"},
   "pendent":      {fill:"#aaaaaa", stroke:"#777777"},
   "nit":          {fill:"#222244", stroke:"#000020"}
 };
-var STATE_RADIUS  = {sol:5, parcial:4, ombra_edifici:4.5, ombra:3.5, pendent:3.5, nit:3};
-var STATE_FOPAC   = {sol:.9, parcial:.85, ombra_edifici:.9, ombra:.8, pendent:.55, nit:.4};
+var STATE_RADIUS  = {sol:5, parcial:4, ombra_edifici:4.5, ombra:3.5, toldo:4.5, pendent:3.5, nit:3};
+var STATE_FOPAC   = {sol:.9, parcial:.85, ombra_edifici:.9, ombra:.8, toldo:.9, pendent:.55, nit:.4};
 
 var map, layerGroup;
 var currentHour = 12, currentMonth = 5;
@@ -769,6 +973,7 @@ function initMap() {
 function showPopup(d, marker) {
   var labels = {sol:"Sol directe",parcial:"Sol parcial",
                 ombra_edifici:"Ombra d'edifici",ombra:"Ombra",
+                toldo:"Cobert/Toldo (OSM)",
                 pendent:"Pendent calcular",nit:"Nit"};
   var html = '<div class="xp-popup">'
     + '<div class="xp-popup-title">&#x2600;&#xFE0F; Terrassa</div>'
@@ -780,6 +985,8 @@ function showPopup(d, marker) {
     +   '<span class="xp-popup-val">' + d.taules + ' (' + d.cadires + ' cadires)</span></div>'
     + '<div class="xp-popup-row"><span class="xp-popup-label">Estat (' + currentHour + 'h)</span>'
     +   '<span class="xp-popup-val">' + (labels[d.state]||"?") + '</span></div>'
+    + '<div class="xp-popup-row"><span class="xp-popup-label">Cobertura OSM</span>'
+    +   '<span class="xp-popup-val">' + (d.hasCover ? "&#x2705; Cobert/Toldo" : "&#x274C; Sense dades") + '</span></div>'
     + '</div>';
   marker.bindPopup(html, {maxWidth:260}).openPopup();
 }
@@ -860,11 +1067,19 @@ function updateMap() {
 function initControls() {
   function maybeAutoRecalc() {
     updateMap();
-    if (buildingsLoaded) setTimeout(recalcWithShadows, 350);
+    if (buildingsLoaded) {
+      // Si ja tenim dades carregades, recolorar directament (sense Overpass)
+      setTimeout(recolorPoints, 100);
+    }
   }
   document.getElementById("hour-slider").addEventListener("input", maybeAutoRecalc);
   document.getElementById("month-select").addEventListener("change", maybeAutoRecalc);
-  document.getElementById("district-filter").addEventListener("change", updateMap);
+  document.getElementById("district-filter").addEventListener("change", function() {
+    if (buildingsLoaded) recalcWithShadows(); else updateMap();
+  });
+  document.getElementById("filter-toldo").addEventListener("change", function() {
+    if (buildingsLoaded) recalcWithShadows(); else updateMap();
+  });
   var now = new Date();
   document.getElementById("hour-slider").value = now.getHours();
   document.getElementById("month-select").value = now.getMonth();
