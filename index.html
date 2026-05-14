@@ -374,8 +374,7 @@ function fetchBuildings(bounds, onDone, onError) {
   }
   var query = buildOverpassQuery(bounds);
   fetchOverpass(query, function(data) {
-    var buildings = parseOSMBuildings(data);
-    var result = { buildings: buildings, coveredSeating: coveredSeating };
+    var result = parseOSMBuildings(data);  // returns {buildings, coveredSeating}
     buildingCache[key] = result;
     onDone(result, false);
   }, onError);
