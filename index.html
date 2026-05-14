@@ -626,6 +626,10 @@ function recalcWithShadows() {
   if (isCalculating) { pendingRecalc = true; return; }
   isCalculating = true;
   pendingRecalc = false;
+  // Netejar cache d'edificis per forçar nova crida neta
+  // (evita que formats antics contaminin)
+  buildingCache = {};
+  loadedBbox = null;
 
   var btn    = document.getElementById("recalc-btn");
   var status = document.getElementById("shadow-status");
@@ -650,9 +654,19 @@ function recalcWithShadows() {
       n: bounds.getNorth(), e: bounds.getEast()
     };
     if (prog) prog.style.width = "55%";
-    // Extreure buildings i covered venues del resultat
-    var buildings          = (result && result.buildings)     ? result.buildings     : (result || []);
-    var coveredVenuesLocal = (result && result.coveredSeating) ? result.coveredSeating : [];
+    // Extreure buildings i covered venues — defensiu contra formats antics
+    var buildings, coveredVenuesLocal;
+    if (result && Array.isArray(result.buildings)) {
+      buildings          = result.buildings;
+      coveredVenuesLocal = result.coveredSeating || [];
+    } else if (Array.isArray(result)) {
+      // Format antic (array directe) — convertir
+      buildings          = result;
+      coveredVenuesLocal = [];
+    } else {
+      buildings          = [];
+      coveredVenuesLocal = [];
+    }
     coveredVenues = coveredVenuesLocal;
 
     status.innerHTML = (fromCache ? "&#x1F4BE; Cache" : "&#x1F4E1; Descarregat") +
