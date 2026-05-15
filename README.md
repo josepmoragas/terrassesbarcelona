@@ -1,2 +1,2 @@
 # terrassesbarcelona
-Descobreix si les terrasses de Barcelona tenen sol a l'hora que vulguis
+Descobreix si les terrasses de Barcelona tenen sol o ombra a l'hora que vulguis
