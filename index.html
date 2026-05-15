@@ -571,6 +571,31 @@ function triggerRecalc() {
 var _rafId = null;
 var _recolorQueue = null;
 
+// Estils predefinits per estat — evita crear objectes nous per cada punt
+var STYLES = {
+  sol:          {fillColor:"#ffcc00", color:"#cc9900", fillOpacity:0.9,  opacity:0.9,  radius:5},
+  parcial:      {fillColor:"#ff8c00", color:"#cc6600", fillOpacity:0.85, opacity:0.9,  radius:4},
+  ombra_edifici:{fillColor:"#22aa44", color:"#116622", fillOpacity:0.9,  opacity:0.9,  radius:4.5},
+  toldo:        {fillColor:"#9b59b6", color:"#6c3483", fillOpacity:0.9,  opacity:0.9,  radius:4.5},
+  nit:          {fillColor:"#222244", color:"#000020", fillOpacity:0.4,  opacity:0.9,  radius:3},
+  hidden:       {fillColor:"#aaaaaa", color:"#777777", fillOpacity:0,    opacity:0,    radius:3}
+};
+
+function applyStyle(mk, style) {
+  // Accedir directament a options evita la majoria del overhead de setStyle()
+  // setStyle() de Leaflet fa: merge options + redraw + fire event per cada capa
+  // Aquí actualitzem options directament i deixem que el Canvas renderer
+  // agrupi tots els redraws en 1 sol frame
+  var o = mk.options;
+  o.fillColor   = style.fillColor;
+  o.color       = style.color;
+  o.fillOpacity = style.fillOpacity;
+  o.opacity     = style.opacity;
+  o.radius      = style.radius;
+  // Marcar com a "dirty" sense disparar redraw individual
+  if (mk._renderer) mk._renderer._requestRedraw(mk);
+}
+
 function recolorPointsAsync(buildings, coveredVenuesLocal, sun) {
   if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
 
@@ -579,19 +604,17 @@ function recolorPointsAsync(buildings, coveredVenuesLocal, sun) {
   var nSol = 0, nOmbraEdifici = 0, nNit = 0;
   var pos   = 0;
   var total = allData.length;
-  var BATCH = 300;
+  // Amb Canvas renderer podem fer lots molt més grans —
+  // no hi ha reflow per element, tot va a una cua de redraw
+  var BATCH = 1500;
 
-  // Elements UI per al progrés
   var progBar    = document.getElementById("shadow-progress");
   var statusEl   = document.getElementById("shadow-status");
   var statusMain = document.getElementById("status-main");
 
   function setUIProgress(pct, msg) {
     if (progBar)  progBar.style.width = pct + "%";
-    if (statusEl && msg) {
-      statusEl.className = "loading";
-      statusEl.innerHTML = msg;
-    }
+    if (statusEl && msg) { statusEl.className = "loading"; statusEl.innerHTML = msg; }
     if (statusMain) statusMain.textContent = Math.round(pct) + "% calculat...";
   }
 
@@ -601,20 +624,25 @@ function recolorPointsAsync(buildings, coveredVenuesLocal, sun) {
     for (; pos < end; pos++) {
       var d  = allData[pos];
       var mk = markers[pos];
-      var show = !filterBarri || d.barri === filterBarri;
-      if (!show) { mk.setStyle({opacity:0, fillOpacity:0}); continue; }
 
+      // Filtre de barri
+      if (filterBarri && d.barri !== filterBarri) {
+        applyStyle(mk, STYLES.hidden); continue;
+      }
+
+      // Nit
       if (altDeg < 0) {
-        d.state="nit"; nNit++;
-        mk.setStyle({fillColor:"#222244",color:"#000020",fillOpacity:0.4,opacity:0.9,radius:3});
-        continue;
-      }
-      if (d.hasToldo) {
-        d.state="toldo";
-        mk.setStyle({fillColor:"#9b59b6",color:"#6c3483",fillOpacity:0.9,opacity:0.9,radius:4.5});
-        continue;
+        d.state = "nit"; nNit++;
+        applyStyle(mk, STYLES.nit); continue;
       }
 
+      // Crowdsourcing toldo
+      if (d.hasToldo) {
+        d.state = "toldo";
+        applyStyle(mk, STYLES.toldo); continue;
+      }
+
+      // Ombra d'edifici
       var inShadow = false;
       if (altDeg >= 2) {
         var pt = {lat:d.lat, lng:d.lng};
@@ -628,55 +656,43 @@ function recolorPointsAsync(buildings, coveredVenuesLocal, sun) {
 
       if (inShadow) {
         d.state="ombra_edifici"; nOmbraEdifici++;
-        mk.setStyle({fillColor:"#22aa44",color:"#116622",fillOpacity:0.9,opacity:0.9,radius:4.5});
+        applyStyle(mk, STYLES.ombra_edifici);
       } else if (altDeg < 8) {
         d.state="parcial"; nSol++;
-        mk.setStyle({fillColor:"#ff8c00",color:"#cc6600",fillOpacity:0.85,opacity:0.9,radius:4});
+        applyStyle(mk, STYLES.parcial);
       } else {
         d.state="sol"; nSol++;
-        mk.setStyle({fillColor:"#ffcc00",color:"#cc9900",fillOpacity:0.9,opacity:0.9,radius:5});
+        applyStyle(mk, STYLES.sol);
       }
     }
 
     var pct = Math.round((pos / total) * 100);
     setUIProgress(pct,
       "&#x231B; Calculant ombres... <b>" + pct + "%</b>" +
-      " &nbsp;(" + pos.toLocaleString() + " / " + total.toLocaleString() + " terrasses)");
-
-    // Stats en temps real
+      " &nbsp;(" + pos.toLocaleString() + " / " + total.toLocaleString() + ")");
     document.getElementById("stat-sol").innerHTML   = "Amb sol: <b>" + nSol + "</b>";
     document.getElementById("stat-ombra").innerHTML = "Ombra edifici: <b>" + nOmbraEdifici + "</b>";
 
     if (pos < total) {
       _rafId = requestAnimationFrame(processBatch);
     } else {
-      // ── Finalitzat ───────────────────────────────────────────
       _rafId = null;
       if (progBar) progBar.style.width = "100%";
       document.getElementById("stat-nit").innerHTML = "Nit: <b>" + nNit + "</b>";
-
       var mesos = ["Gen","Feb","Mar","Abr","Mai","Jun","Jul","Ago","Set","Oct","Nov","Des"];
       var mins  = getSelectedMinutes();
       var timeStr = formatTime(mins) + "h — " + mesos[getSelectedMonth()];
-
       if (statusEl) {
         statusEl.className = "ok";
-        statusEl.innerHTML =
-          "&#x2705; <b>" + nSol + "</b> sol &nbsp;|&nbsp;" +
+        statusEl.innerHTML = "&#x2705; <b>" + nSol + "</b> sol &nbsp;|&nbsp;" +
           "<b>" + nOmbraEdifici + "</b> ombra &nbsp;|&nbsp;" +
-          "<b>" + nNit + "</b> nit &nbsp;&mdash;&nbsp;" +
-          buildings.length + " edificis";
+          "<b>" + nNit + "</b> nit &nbsp;&mdash;&nbsp;" + buildings.length + " edificis";
       }
       if (statusMain) statusMain.textContent = timeStr + " — " + buildings.length + " edificis";
-
-      // Reset progress bar after a moment
-      setTimeout(function() {
-        if (progBar) progBar.style.width = "0%";
-      }, 1500);
+      setTimeout(function() { if (progBar) progBar.style.width = "0%"; }, 1500);
     }
   }
 
-  // Mostrar inici immediatament
   setUIProgress(0, "&#x231B; Iniciant càlcul d'ombres...");
   _rafId = requestAnimationFrame(processBatch);
 }
@@ -772,15 +788,7 @@ function recalcWithShadows() {
     var nSol = 0, nOmbraEdifici = 0, nNit = 0;
     var filterBarri = document.getElementById("district-filter").value;
 
-    allData.forEach(function(d, i) {
-      var mk = markers[i];
-      if (!filterBarri || d.barri === filterBarri) {
-        mk.setStyle({opacity:0.9, fillOpacity:0.3, fillColor:"#aaaaaa", color:"#777", radius:3.5});
-      } else {
-        mk.setStyle({opacity:0, fillOpacity:0});
-      }
-    });
-    // Recolorat async per no bloquejar la UI
+    // Recolorat async — Canvas renderer gestiona el redraw en bloc
     recolorPointsAsync(buildings, [], sun);
 
     if (prog) prog.style.width = "100%";
@@ -833,14 +841,14 @@ function fallbackSunOnly() {
   allData.forEach(function(d, i) {
     var mk = markers[i];
     var show = !filterBarri || d.barri === filterBarri;
-    if (!show) { mk.setStyle({ opacity: 0, fillOpacity: 0 }); return; }
+    if (!show) { applyStyle(mk, STYLES.hidden); return; }
     if (altDeg < 0) {
-      mk.setStyle({ fillColor:"#222244", color:"#000020", fillOpacity:0.4, radius:3 });
+      applyStyle(mk, STYLES.nit);
     } else if (altDeg < 8) {
-      mk.setStyle({ fillColor:"#ff8c00", color:"#cc6600", fillOpacity:0.8, radius:4 });
+      applyStyle(mk, STYLES.parcial);
     } else {
       // Show as "uncalculated" grey since we have no building data
-      mk.setStyle({ fillColor:"#aaaaaa", color:"#777777", fillOpacity:0.6, radius:3.5 });
+      applyStyle(mk, STYLES.hidden);
     }
   });
 }
@@ -968,8 +976,7 @@ function reportToldo(idx) {
 
   // Marcar visualment
   d.hasToldo = true;
-  markers[idx].setStyle({ fillColor:"#9b59b6", color:"#6c3483",
-                          fillOpacity:0.9, opacity:0.9, radius:4.5 });
+  applyStyle(markers[idx], STYLES.toldo);
 
   // Tancar popup
   map.closePopup();
@@ -1028,10 +1035,16 @@ function processData() {
 }
 
 function initMap() {
-  map = L.map("map", {center:[41.3888,2.159], zoom:13});
+  map = L.map("map", {center:[41.3888,2.159], zoom:13,
+    // Preferir Canvas renderer (molt més ràpid per milers de punts)
+    preferCanvas: true
+  });
   L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", {
     attribution:"&copy; CartoDB &copy; OSM", maxZoom:19, subdomains:"abcd"
   }).addTo(map);
+
+  // Canvas renderer únic per a tots els markers — 1 sol element DOM
+  var canvasRenderer = L.canvas({ padding: 0.5 });
   layerGroup = L.layerGroup().addTo(map);
 
   // Shadow engine viewport listeners
@@ -1040,6 +1053,7 @@ function initMap() {
 
   allData.forEach(function(d, i) {
     var mk = L.circleMarker([d.lat, d.lng], {
+      renderer: canvasRenderer,
       radius:3.5, weight:0.8, opacity:.9, fillOpacity:.55,
       fillColor:"#aaaaaa", color:"#777777"
     });
@@ -1110,7 +1124,7 @@ function updateMap() {
   allData.forEach(function(d, i) {
     var mk = markers[i];
     var show = !filterBarri || d.barri === filterBarri;
-    if (!show) { mk.setStyle({opacity:0, fillOpacity:0}); return; }
+    if (!show) { applyStyle(mk, STYLES.hidden); return; }
 
     var state = getSunState(d.lat, d.lng, d.azimuth, hour, month);
     // If we already have building data, keep the building-calculated state
@@ -1122,11 +1136,8 @@ function updateMap() {
       d.state = state;
     }
 
-    var col = STATE_COLORS[d.state] || STATE_COLORS["pendent"];
-    var rad = STATE_RADIUS[d.state] || 3.5;
-    var fop = STATE_FOPAC[d.state] || 0.55;
-    mk.setStyle({fillColor:col.fill, color:col.stroke,
-                 opacity:.9, fillOpacity:fop, radius:rad});
+    var st = STYLES[d.state] || STYLES.hidden;
+    applyStyle(mk, st);
 
     if (d.state === "sol" || d.state === "parcial") nSol++;
     else if (d.state === "ombra" || d.state === "ombra_edifici") nOmbra++;
