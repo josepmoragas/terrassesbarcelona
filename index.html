@@ -90,20 +90,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
   background-size:200% 100%;animation:loadA 1s linear infinite;transition:width .3s}
 @keyframes loadA{0%{background-position:200% 0}100%{background-position:0% 0}}
 /* Recalc button */
-.calc-btn-row{display:flex;gap:5px;margin-bottom:5px}
-.calc-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:4px;
-  padding:7px 4px;border-radius:3px;font-family:var(--font);font-size:12px;
-  font-weight:bold;cursor:pointer;text-shadow:1px 1px 1px rgba(0,0,0,.5);
-  box-shadow:inset 1px 1px 0 rgba(255,255,255,.3),0 1px 3px rgba(0,0,0,.4);
-  border:none;transition:filter .1s}
-.calc-btn:active{filter:brightness(.88);transform:translateY(1px)}
-.calc-btn.loading{filter:grayscale(.8) brightness(.7);cursor:wait;pointer-events:none}
-#btn-sol{background:linear-gradient(180deg,#ffe066,#e8a800 50%,#c88000);
-  color:#4a2800;border:1px solid #a06000}
-#btn-sol:hover{filter:brightness(1.1)}
-#btn-ombra{background:linear-gradient(180deg,#4a9f5f,#1e7a38 50%,#145a28);
-  color:white;border:1px solid #0e4a1e}
-#btn-ombra:hover{filter:brightness(1.1)}
+#btn-calcular{display:flex;align-items:center;justify-content:center;gap:6px;
+  width:100%;padding:8px 0;margin-bottom:5px;
+  background:linear-gradient(180deg,#5b9bd4 0%,#2060b0 45%,#1a4a90 55%,#3070c0 100%);
+  border:1px solid #0a3070;border-radius:3px;color:white;
+  font-family:var(--font);font-size:12px;font-weight:bold;cursor:pointer;
+  text-shadow:1px 1px 2px rgba(0,0,0,.6);
+  box-shadow:inset 1px 1px 0 rgba(255,255,255,.3),0 2px 4px rgba(0,0,0,.4);
+  letter-spacing:.3px}
+#btn-calcular:hover{filter:brightness(1.1)}
+#btn-calcular:active{filter:brightness(.88);transform:translateY(1px)}
+#btn-calcular.loading{background:linear-gradient(180deg,#b0b0b0,#808080);
+  cursor:wait;pointer-events:none}
 #recalc-btn{display:none}
 #shadow-status{font-size:10px;padding:4px 6px;border:1px inset var(--xp-border-mid);
   background:white;margin:4px 0;line-height:1.7;min-height:38px}
@@ -191,14 +189,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
         <div class="panel">
           <div class="panel-header">&#x1F3DB; C&agrave;lcul d'Ombres (OSM)</div>
           <div class="panel-body">
-            <div class="calc-btn-row">
-              <button id="btn-sol" class="calc-btn" onclick="calcSol()">
-                &#x2600;&#xFE0F; On hi ha SOL
-              </button>
-              <button id="btn-ombra" class="calc-btn" onclick="calcOmbra()">
-                &#x1F333; On hi ha OMBRA
-              </button>
-            </div>
+            <button id="btn-calcular" onclick="calcular()">
+              &#x2600;&#xFE0F;&#x1F333; On hi ha sol i ombra?
+            </button>
             <button id="recalc-btn" onclick="recalcWithShadows()"></button>
             <div id="shadow-status">
               Tria <b>Sol</b> o <b>Ombra</b> per carregar els edificis d'OSM i calcular.
@@ -578,6 +571,71 @@ var _rafId = null;
 var _recolorQueue = null;
 
 // Estils predefinits per estat — evita crear objectes nous per cada punt
+// ═══════════════════════════════════════════════════════════════
+// SPATIAL INDEX — grid hash per accelerar lookup d'edificis
+// Divideix el mapa en cel·les de ~100m i indexa els edificis
+// per cel·la. Cada terrassa consulta 1-4 cel·les → O(1).
+// ═══════════════════════════════════════════════════════════════
+var spatialIndex  = null;  // {cellKey: [buildingIdx, ...]}
+var CELL_SIZE_LAT = 0.0009; // ~100m en latitud
+var CELL_SIZE_LNG = 0.0012; // ~100m en longitud a BCN (41.4°N)
+
+function cellKey(lat, lng) {
+  var r = Math.floor(lat / CELL_SIZE_LAT);
+  var c = Math.floor(lng / CELL_SIZE_LNG);
+  return r + "," + c;
+}
+
+function buildSpatialIndex(buildings, sunAlt, sunAz) {
+  var idx = {};
+
+  // Shadow vector per calcular quines cel·les cobreix l'ombra
+  var shadowLen = 0;
+  if (sunAlt > 0.017) {
+    shadowLen = Math.min(30 / Math.tan(sunAlt), 150); // cap a 150m
+  }
+  var stdAz      = sunAz + Math.PI;
+  var shadowStdAz = stdAz + Math.PI;
+  var dLatMax    = Math.abs(Math.cos(shadowStdAz) * shadowLen) / 111320 + CELL_SIZE_LAT;
+  var dLngMax    = Math.abs(Math.sin(shadowStdAz) * shadowLen) / (111320 * 0.75) + CELL_SIZE_LNG;
+
+  for (var bi = 0; bi < buildings.length; bi++) {
+    var b = buildings[bi];
+    // Bbox de l'edifici + la seva ombra màxima
+    var latMin = b.clat - dLatMax;
+    var latMax = b.clat + dLatMax;
+    var lngMin = b.clng - dLngMax;
+    var lngMax = b.clng + dLngMax;
+
+    // Registrar a totes les cel·les que toca
+    var rMin = Math.floor(latMin / CELL_SIZE_LAT);
+    var rMax = Math.floor(latMax / CELL_SIZE_LAT);
+    var cMin = Math.floor(lngMin / CELL_SIZE_LNG);
+    var cMax = Math.floor(lngMax / CELL_SIZE_LNG);
+
+    for (var r = rMin; r <= rMax; r++) {
+      for (var cc = cMin; cc <= cMax; cc++) {
+        var key = r + "," + cc;
+        if (!idx[key]) idx[key] = [];
+        idx[key].push(bi);
+      }
+    }
+  }
+  return idx;
+}
+
+function getBuildingsForPoint(lat, lng, buildings) {
+  var key  = cellKey(lat, lng);
+  var idxs = spatialIndex ? (spatialIndex[key] || []) : null;
+  if (!idxs) {
+    // Fallback: filtre simple si no hi ha index
+    return buildings;
+  }
+  var result = [];
+  for (var i = 0; i < idxs.length; i++) result.push(buildings[idxs[i]]);
+  return result;
+}
+
 var STYLES = {
   sol:          {fillColor:"#ffcc00", color:"#cc9900", fillOpacity:0.9,  opacity:0.9,  radius:5},
   parcial:      {fillColor:"#ff8c00", color:"#cc6600", fillOpacity:0.85, opacity:0.9,  radius:4},
@@ -625,6 +683,10 @@ function recolorPointsAsync(buildings, coveredVenuesLocal, sun) {
     if (statusMain) statusMain.textContent = Math.round(pct) + "% calculat...";
   }
 
+  // Construir spatial index ABANS del loop — 1 sola vegada
+  setUIProgress(2, "&#x231B; Construint index espacial...");
+  spatialIndex = buildSpatialIndex(buildings, sun.altitude, sun.azimuth);
+
   function processBatch() {
     var end = Math.min(pos + BATCH, total);
 
@@ -653,11 +715,12 @@ function recolorPointsAsync(buildings, coveredVenuesLocal, sun) {
       var inShadow = false;
       if (altDeg >= 2) {
         var pt = {lat:d.lat, lng:d.lng};
-        for (var bi = 0; bi < buildings.length; bi++) {
-          var b = buildings[bi];
-          if (Math.abs(b.clat-d.lat) > 0.004) continue;
-          if (Math.abs(b.clng-d.lng) > 0.005) continue;
-          if (isInBuildingShadow(pt, b, sun.altitude, sun.azimuth)) { inShadow=true; break; }
+        // Spatial index: consulta O(1) en lloc d'iterar tots els edificis
+        var nearby = getBuildingsForPoint(d.lat, d.lng, buildings);
+        for (var bi = 0; bi < nearby.length; bi++) {
+          if (isInBuildingShadow(pt, nearby[bi], sun.altitude, sun.azimuth)) {
+            inShadow = true; break;
+          }
         }
       }
 
@@ -743,17 +806,9 @@ function recolorPoints() {
 // ── MODE DE CÀLCUL: sol o ombra ──────────────────────────────────
 var calcMode = null; // "sol" | "ombra" | null
 
-function calcSol() {
-  calcMode = "sol";
-  document.getElementById("btn-sol").classList.add("loading");
-  document.getElementById("btn-ombra").classList.remove("loading");
-  recalcWithShadows();
-}
-
-function calcOmbra() {
-  calcMode = "ombra";
-  document.getElementById("btn-ombra").classList.add("loading");
-  document.getElementById("btn-sol").classList.remove("loading");
+function calcular() {
+  calcMode = null; // mostrar tot: sol i ombra
+  document.getElementById("btn-calcular").classList.add("loading");
   recalcWithShadows();
 }
 
@@ -845,16 +900,16 @@ function recalcWithShadows() {
 "";
 
     // Restaurar botons
-    document.getElementById("btn-sol").classList.remove("loading");
-    document.getElementById("btn-ombra").classList.remove("loading");
+    var bc = document.getElementById("btn-calcular");
+    if (bc) bc.classList.remove("loading");
     isCalculating = false;
     if (pendingRecalc) setTimeout(recalcWithShadows, 300);
 
   }, function(err) {
     status.className = "error";
     status.innerHTML = "&#x274C; " + err.message.replace(/\n/g, "<br>");
-    document.getElementById("btn-sol").classList.remove("loading");
-    document.getElementById("btn-ombra").classList.remove("loading");
+    var bc = document.getElementById("btn-calcular");
+    if (bc) bc.classList.remove("loading");
     isCalculating = false;
     fallbackSunOnly();
   });
@@ -1222,6 +1277,7 @@ function initControls() {
       var fp = colorFingerprint();
       if (fp !== lastColors) {
         lastColors = fp;
+        spatialIndex = null; // forçar reconstrucció amb nou angle solar
         setTimeout(recolorPoints, 80);
       }
     }
