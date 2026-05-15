@@ -301,13 +301,11 @@ function buildOverpassQuery(bounds) {
   var e = bounds.getEast().toFixed(5);
   var bbox = s + "," + w + "," + n + "," + e;
   // Union: edificis + nodes/ways amb info de outdoor seating cobert
-  return "[out:json][timeout:30];\n" +
-    "(" +
-      "way[\"building\"](" + bbox + ");" +
-
-    ");\n" +
-    "(._;>;);\n" +
-    "out body qt;";
+  // "out geom" retorna la geometria inline sense expandir nodes —
+  // evita demanar 500k+ nodes separats, molt més ràpid
+  return "[out:json][timeout:25];\n" +
+    "way[\"building\"](" + bbox + ");\n" +
+    "out geom qt;";
 }
 
 function viewportKey(bounds) {
@@ -378,76 +376,37 @@ function fetchBuildings(bounds, onDone, onError) {
 
 // ── PARSE OSM → building objects ────────────────────────────────
 function parseOSMBuildings(osmData) {
-  var nodes = {};
-  (osmData.elements || []).forEach(function(el) {
-    if (el.type === "node") nodes[el.id] = { lat: el.lat, lng: el.lon };
-  });
-
-  var buildings = [];
-  var coveredSeating = []; // locals amb outdoor seating cobert (toldo/cobert)
+  // Amb "out geom", cada way té geometry:[{lat,lon},...] inline
+  // No cal node lookup — molt més ràpid de parsejar
+  var buildings      = [];
+  var coveredSeating = [];
 
   (osmData.elements || []).forEach(function(el) {
-    if (!el.tags) return;
+    if (el.type !== "way" || !el.tags || !el.tags.building) return;
 
-    // ── Locals amb outdoor seating cobert ──────────────────────
-    var isCovered = (
-      el.tags["outdoor_seating"] === "covered" ||
-      el.tags["outdoor_seating:covered"] === "yes" ||
-      el.tags["outdoor_seating:covered"] === "permanent"
-    );
-    if (isCovered) {
-      var lat, lng;
-      if (el.type === "node") {
-        lat = el.lat; lng = el.lon;
-      } else if (el.type === "way" && el.nodes && el.nodes.length > 0) {
-        // Centroid del way
-        var clat2 = 0, clng2 = 0, cnt = 0;
-        el.nodes.forEach(function(nid) {
-          var n = nodes[nid];
-          if (n) { clat2 += n.lat; clng2 += n.lng; cnt++; }
-        });
-        if (cnt > 0) { lat = clat2/cnt; lng = clng2/cnt; }
-      }
-      if (lat && lng) {
-        coveredSeating.push({
-          id: el.id,
-          lat: lat,
-          lng: lng,
-          name: el.tags.name || el.tags["addr:street"] || "",
-          tags: el.tags
-        });
-      }
-    }
+    // Geometria inline (out geom)
+    var geom = el.geometry;
+    if (!geom || geom.length < 4) return;
 
-    // ── Edificis ────────────────────────────────────────────────
-    if (el.type !== "way" || !el.tags.building) return;
-    if (!el.nodes || el.nodes.length < 4) return;
-
-    var height = 10;
+    var height = 12; // Eixample default ~4 plantes
     if (el.tags["height"]) {
       var h = parseFloat(el.tags["height"]);
       if (!isNaN(h) && h > 0) height = h;
     } else if (el.tags["building:levels"]) {
       var lv = parseFloat(el.tags["building:levels"]);
       if (!isNaN(lv) && lv > 0) height = lv * 3.2;
-    } else if (el.tags["building"] === "yes") {
-      height = 12;
     }
 
-    var polygon = el.nodes.map(function(nid) { return nodes[nid]; })
-                          .filter(Boolean);
-    if (polygon.length < 3) return;
-
     var clat = 0, clng = 0;
-    polygon.forEach(function(p) { clat += p.lat; clng += p.lng; });
-
-    buildings.push({
-      id: el.id,
-      polygon: polygon,
-      height: height,
-      clat: clat / polygon.length,
-      clng: clng / polygon.length
+    var polygon = geom.map(function(pt) {
+      clat += pt.lat; clng += pt.lon;
+      return { lat: pt.lat, lng: pt.lon };
     });
+    clat /= geom.length;
+    clng /= geom.length;
+
+    buildings.push({ id: el.id, polygon: polygon,
+                     height: height, clat: clat, clng: clng });
   });
   return { buildings: buildings, coveredSeating: coveredSeating };
 }
@@ -760,6 +719,12 @@ function recolorPointsAsync(buildings, coveredVenuesLocal, sun) {
       }
       if (statusMain) statusMain.textContent = timeStr + " — " + buildings.length + " edificis";
       lastColors = colorFingerprint();
+      var bc2 = document.getElementById("btn-calcular");
+      if (bc2 && bc2.classList.contains("loading")) {
+        bc2.classList.remove("loading");
+        bc2.style.background = "";
+        bc2.innerHTML = "&#x2600;&#xFE0F;&#x1F333; On hi ha sol i ombra?";
+      }
       setTimeout(function() { if (progBar) progBar.style.width = "0%"; }, 1500);
     }
   }
@@ -807,8 +772,11 @@ function recolorPoints() {
 var calcMode = null; // "sol" | "ombra" | null
 
 function calcular() {
-  calcMode = null; // mostrar tot: sol i ombra
-  document.getElementById("btn-calcular").classList.add("loading");
+  calcMode = null;
+  var btn = document.getElementById("btn-calcular");
+  btn.style.background = ""; // restaurar color original
+  btn.classList.add("loading");
+  btn.innerHTML = "&#x231B; Calculant...";
   recalcWithShadows();
 }
 
@@ -901,7 +869,11 @@ function recalcWithShadows() {
 
     // Restaurar botons
     var bc = document.getElementById("btn-calcular");
-    if (bc) bc.classList.remove("loading");
+    if (bc) {
+      bc.classList.remove("loading");
+      bc.style.background = "";
+      bc.innerHTML = "&#x2600;&#xFE0F;&#x1F333; On hi ha sol i ombra?";
+    }
     isCalculating = false;
     if (pendingRecalc) setTimeout(recalcWithShadows, 300);
 
@@ -909,7 +881,11 @@ function recalcWithShadows() {
     status.className = "error";
     status.innerHTML = "&#x274C; " + err.message.replace(/\n/g, "<br>");
     var bc = document.getElementById("btn-calcular");
-    if (bc) bc.classList.remove("loading");
+    if (bc) {
+      bc.classList.remove("loading");
+      bc.style.background = "";
+      bc.innerHTML = "&#x2600;&#xFE0F;&#x1F333; On hi ha sol i ombra?";
+    }
     isCalculating = false;
     fallbackSunOnly();
   });
@@ -967,28 +943,21 @@ function colorFingerprint() {
 }
 
 function onViewportChange() {
-  clearTimeout(_viewportTimer);
-  _viewportTimer = setTimeout(function() {
-    if (!buildingsLoaded) return;
-
-    var currentZoom = map.getZoom();
-
-    // Zoom in: viewport s'encongeix → sempre dins el bbox → no cal res
-    // Els colors ja són correctes, el canvas es repinta sol per Leaflet
-    if (loadedZoom !== null && currentZoom > loadedZoom) return;
-
-    // Zoom out: viewport s'expandeix
-    // Si seguim dins el bbox carregat (amb marge) → no recalculem
-    if (viewportInsideLoadedBbox()) {
-      // Actualitzar loadedZoom perquè el proper zoom out
-      // compari correctament
-      loadedZoom = currentZoom;
-      return;
+  // El recalcul és sempre manual (botó).
+  // Quan el viewport canvia, simplement guardem que el bbox actual
+  // pot estar desfasat — el botó mostrarà un avís.
+  if (!buildingsLoaded) return;
+  var currentZoom = map.getZoom();
+  if (loadedZoom !== null && currentZoom > loadedZoom) return; // zoom in: ok
+  if (!viewportInsideLoadedBbox()) {
+    // Mostrar avís al botó que caldria recalcular
+    var btn = document.getElementById("btn-calcular");
+    if (btn && !btn.classList.contains("loading")) {
+      btn.innerHTML = "&#x26A0;&#xFE0F; Recalcular (nova zona)";
+      btn.style.background = "linear-gradient(180deg,#e07020,#b04010 50%,#903010)";
     }
-
-    // Pan fora del bbox O zoom out molt gran → cal edificis nous
-    recalcWithShadows();
-  }, 500);
+  }
+  loadedZoom = currentZoom;
 }
 
 function setProgress(pct) {
@@ -1282,16 +1251,18 @@ function initControls() {
       }
     }
   }
+  // Slider i time-input: NOMÉS actualitzen la UI (indicador solar, hores)
+  // El recalcul real és manual — botó "Recalcular"
   document.getElementById("hour-slider").addEventListener("input", function() {
-    syncInputToSlider(); maybeAutoRecalc();
+    syncInputToSlider(); updateMap();
   });
   document.getElementById("time-input").addEventListener("change", function() {
-    syncSliderToInput(); maybeAutoRecalc();
+    syncSliderToInput(); updateMap();
   });
   document.getElementById("time-input").addEventListener("keydown", function(e) {
-    if (e.key === "Enter") { syncSliderToInput(); maybeAutoRecalc(); }
+    if (e.key === "Enter") { syncSliderToInput(); updateMap(); }
   });
-  document.getElementById("date-input").addEventListener("change", maybeAutoRecalc);
+  document.getElementById("date-input").addEventListener("change", updateMap);
   document.getElementById("district-filter").addEventListener("change", function() {
     if (buildingsLoaded) recolorPoints(); else updateMap();
   });
