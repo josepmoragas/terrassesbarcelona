@@ -90,17 +90,21 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
   background-size:200% 100%;animation:loadA 1s linear infinite;transition:width .3s}
 @keyframes loadA{0%{background-position:200% 0}100%{background-position:0% 0}}
 /* Recalc button */
-#recalc-btn{display:flex;align-items:center;justify-content:center;gap:5px;width:100%;
-  padding:6px 0;background:linear-gradient(180deg,#5fba3f,#3a9010 50%,#2a7008);
-  border:1px solid #1a5008;border-radius:3px;color:white;font-family:var(--font);
-  font-size:12px;font-weight:bold;cursor:pointer;
-  text-shadow:1px 1px 1px rgba(0,0,0,.5);
+.calc-btn-row{display:flex;gap:5px;margin-bottom:5px}
+.calc-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:4px;
+  padding:7px 4px;border-radius:3px;font-family:var(--font);font-size:12px;
+  font-weight:bold;cursor:pointer;text-shadow:1px 1px 1px rgba(0,0,0,.5);
   box-shadow:inset 1px 1px 0 rgba(255,255,255,.3),0 1px 3px rgba(0,0,0,.4);
-  margin-bottom:5px}
-#recalc-btn:hover{filter:brightness(1.12)}
-#recalc-btn:active{filter:brightness(.9);transform:translateY(1px)}
-#recalc-btn.loading{background:linear-gradient(180deg,#b0b0b0,#808080);
-  cursor:wait;pointer-events:none}
+  border:none;transition:filter .1s}
+.calc-btn:active{filter:brightness(.88);transform:translateY(1px)}
+.calc-btn.loading{filter:grayscale(.8) brightness(.7);cursor:wait;pointer-events:none}
+#btn-sol{background:linear-gradient(180deg,#ffe066,#e8a800 50%,#c88000);
+  color:#4a2800;border:1px solid #a06000}
+#btn-sol:hover{filter:brightness(1.1)}
+#btn-ombra{background:linear-gradient(180deg,#4a9f5f,#1e7a38 50%,#145a28);
+  color:white;border:1px solid #0e4a1e}
+#btn-ombra:hover{filter:brightness(1.1)}
+#recalc-btn{display:none}
 #shadow-status{font-size:10px;padding:4px 6px;border:1px inset var(--xp-border-mid);
   background:white;margin:4px 0;line-height:1.7;min-height:38px}
 #shadow-status.ok{border-left:3px solid #3a9010}
@@ -172,15 +176,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
           <div class="panel-header">&#x1F4C5; Data</div>
           <div class="panel-body">
             <div class="xp-slider-wrap">
-              <label>Mes de l'any:</label>
-              <select id="month-select" class="xp-select">
-                <option value="0">Gener</option><option value="1">Febrer</option>
-                <option value="2">Mar&ccedil;</option><option value="3">Abril</option>
-                <option value="4">Maig</option><option value="5" selected>Juny</option>
-                <option value="6">Juliol</option><option value="7">Agost</option>
-                <option value="8">Setembre</option><option value="9">Octubre</option>
-                <option value="10">Novembre</option><option value="11">Desembre</option>
-              </select>
+              <label>Data exacta:</label>
+              <input type="date" id="date-input"
+                style="font-family:var(--font);font-size:11px;background:white;
+                border:1px inset var(--xp-border-mid);padding:2px 4px;width:100%;
+                margin-bottom:4px;cursor:pointer">
             </div>
             <div id="sun-times" style="font-size:10px;line-height:1.9;color:#333;border:1px inset #ccc;padding:4px;background:white">
               &#x1F305; Sortida: &mdash;<br>&#x1F307; Posta: &mdash;
@@ -189,13 +189,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
         </div>
 
         <div class="panel">
-          <div class="panel-header">&#x1F3DB; Ombres d'Edificis (OSM)</div>
+          <div class="panel-header">&#x1F3DB; C&agrave;lcul d'Ombres (OSM)</div>
           <div class="panel-body">
-            <button id="recalc-btn" onclick="recalcWithShadows()">
-              &#x2600; Recalcular ombres
-            </button>
+            <div class="calc-btn-row">
+              <button id="btn-sol" class="calc-btn" onclick="calcSol()">
+                &#x2600;&#xFE0F; On hi ha SOL
+              </button>
+              <button id="btn-ombra" class="calc-btn" onclick="calcOmbra()">
+                &#x1F333; On hi ha OMBRA
+              </button>
+            </div>
+            <button id="recalc-btn" onclick="recalcWithShadows()"></button>
             <div id="shadow-status">
-              Prem <b>Recalcular</b> per descarregar els edificis del viewport des d'OpenStreetMap i calcular les ombres reals.
+              Tria <b>Sol</b> o <b>Ombra</b> per carregar els edificis d'OSM i calcular.
             </div>
             <div class="progress-wrap">
               <div class="progress-bar" id="shadow-progress"></div>
@@ -578,6 +584,7 @@ var STYLES = {
   ombra_edifici:{fillColor:"#22aa44", color:"#116622", fillOpacity:0.9,  opacity:0.9,  radius:4.5},
   toldo:        {fillColor:"#9b59b6", color:"#6c3483", fillOpacity:0.9,  opacity:0.9,  radius:4.5},
   nit:          {fillColor:"#222244", color:"#000020", fillOpacity:0.4,  opacity:0.9,  radius:3},
+  pendent:      {fillColor:"#aaaaaa", color:"#777777", fillOpacity:0.55, opacity:0.9,  radius:3.5},
   hidden:       {fillColor:"#aaaaaa", color:"#777777", fillOpacity:0,    opacity:0,    radius:3}
 };
 
@@ -656,13 +663,13 @@ function recolorPointsAsync(buildings, coveredVenuesLocal, sun) {
 
       if (inShadow) {
         d.state="ombra_edifici"; nOmbraEdifici++;
-        applyStyle(mk, STYLES.ombra_edifici);
+        applyStyle(mk, calcMode==="sol" ? STYLES.hidden : STYLES.ombra_edifici);
       } else if (altDeg < 8) {
         d.state="parcial"; nSol++;
-        applyStyle(mk, STYLES.parcial);
+        applyStyle(mk, calcMode==="ombra" ? STYLES.hidden : STYLES.parcial);
       } else {
         d.state="sol"; nSol++;
-        applyStyle(mk, STYLES.sol);
+        applyStyle(mk, calcMode==="ombra" ? STYLES.hidden : STYLES.sol);
       }
     }
 
@@ -689,6 +696,7 @@ function recolorPointsAsync(buildings, coveredVenuesLocal, sun) {
           "<b>" + nNit + "</b> nit &nbsp;&mdash;&nbsp;" + buildings.length + " edificis";
       }
       if (statusMain) statusMain.textContent = timeStr + " — " + buildings.length + " edificis";
+      lastColors = colorFingerprint();
       setTimeout(function() { if (progBar) progBar.style.width = "0%"; }, 1500);
     }
   }
@@ -697,9 +705,14 @@ function recolorPointsAsync(buildings, coveredVenuesLocal, sun) {
   _rafId = requestAnimationFrame(processBatch);
 }
 
-function getSelectedMonth() {
-  return parseInt(document.getElementById("month-select").value);
+function getSelectedDate() {
+  var el = document.getElementById("date-input");
+  if (el && el.value) return new Date(el.value + "T12:00:00");
+  return new Date(); // fallback
 }
+function getSelectedMonth() { return getSelectedDate().getMonth(); }
+function getSelectedDay()   { return getSelectedDate().getDate(); }
+function getSelectedYear()  { return getSelectedDate().getFullYear(); }
 
 
 // ── RECOLORAR PUNTS (sense nova crida Overpass) ─────────────────
@@ -707,10 +720,11 @@ function getSelectedMonth() {
 function recolorPoints() {
   if (!buildingsLoaded || !loadedBbox) return;
 
-  var mins  = getSelectedMinutes();
-  var month = getSelectedMonth();
-  var date  = new Date(2025, month, 15, Math.floor(mins/60), mins%60, 0);
-  var sun   = SunCalc.getPosition(date, 41.3888, 2.159);
+  var mins    = getSelectedMinutes();
+  var selDate = getSelectedDate();
+  var date    = new Date(selDate.getFullYear(), selDate.getMonth(),
+                         selDate.getDate(), Math.floor(mins/60), mins%60, 0);
+  var sun     = SunCalc.getPosition(date, 41.3888, 2.159);
 
   // Recuperar dades de cache
   var result = null;
@@ -724,6 +738,23 @@ function recolorPoints() {
   var buildings = Array.isArray(result.buildings) ? result.buildings : (Array.isArray(result) ? result : []);
 
   recolorPointsAsync(buildings, [], sun);
+}
+
+// ── MODE DE CÀLCUL: sol o ombra ──────────────────────────────────
+var calcMode = null; // "sol" | "ombra" | null
+
+function calcSol() {
+  calcMode = "sol";
+  document.getElementById("btn-sol").classList.add("loading");
+  document.getElementById("btn-ombra").classList.remove("loading");
+  recalcWithShadows();
+}
+
+function calcOmbra() {
+  calcMode = "ombra";
+  document.getElementById("btn-ombra").classList.add("loading");
+  document.getElementById("btn-sol").classList.remove("loading");
+  recalcWithShadows();
 }
 
 // ── MAIN RECALCULATE ─────────────────────────────────────────────
@@ -742,8 +773,6 @@ function recalcWithShadows() {
 
   // Remove any leftover building polygons
   buildingPolygons.forEach(function(l){map.removeLayer(l);}); buildingPolygons=[];
-  btn.classList.add("loading");
-  btn.textContent = "Calculant...";
   status.className = "loading";
   status.innerHTML = "&#x23F3; Connectant amb OpenStreetMap...";
   if (prog) prog.style.width = "10%";
@@ -758,6 +787,7 @@ function recalcWithShadows() {
       s: bounds.getSouth(), w: bounds.getWest(),
       n: bounds.getNorth(), e: bounds.getEast()
     };
+    loadedZoom = map.getZoom();
     if (prog) prog.style.width = "55%";
     // Extreure buildings i covered venues — defensiu contra formats antics
     var buildings, coveredVenuesLocal;
@@ -778,9 +808,10 @@ function recalcWithShadows() {
       " &mdash; <b>" + buildings.length + "</b> edificis";
 
     var mins  = getSelectedMinutes();
-    var month = getSelectedMonth();
+    var selDate = getSelectedDate();
     var hour  = Math.floor(mins / 60);
-    var date  = new Date(2025, month, 15, hour, mins % 60, 0);
+    var date  = new Date(selDate.getFullYear(), selDate.getMonth(),
+                         selDate.getDate(), hour, mins % 60, 0);
     var sun   = SunCalc.getPosition(date, 41.3888, 2.159);
 
     if (prog) prog.style.width = "70%";
@@ -813,18 +844,18 @@ function recalcWithShadows() {
       "<b>" + nOmbraEdifici + "</b> ombra &nbsp;|&nbsp;" +
 "";
 
-    btn.classList.remove("loading");
-    btn.innerHTML = "&#x2600;&#xFE0F; Recalcular";
+    // Restaurar botons
+    document.getElementById("btn-sol").classList.remove("loading");
+    document.getElementById("btn-ombra").classList.remove("loading");
     isCalculating = false;
     if (pendingRecalc) setTimeout(recalcWithShadows, 300);
 
   }, function(err) {
     status.className = "error";
     status.innerHTML = "&#x274C; " + err.message.replace(/\n/g, "<br>");
-    btn.classList.remove("loading");
-    btn.innerHTML = "&#x2600;&#xFE0F; Recalcular";
+    document.getElementById("btn-sol").classList.remove("loading");
+    document.getElementById("btn-ombra").classList.remove("loading");
     isCalculating = false;
-    // Fallback: show sun/night without buildings
     fallbackSunOnly();
   });
 }
@@ -832,8 +863,9 @@ function recalcWithShadows() {
 // Fallback when Overpass is unreachable
 function fallbackSunOnly() {
   var hour  = parseInt(document.getElementById("hour-slider").value);
-  var month = parseInt(document.getElementById("month-select").value);
-  var date  = new Date(2025, month, 15, hour, 0, 0);
+  var selDate = getSelectedDate();
+  var month = selDate.getMonth();
+  var date  = new Date(selDate.getFullYear(), month, selDate.getDate(), hour, 0, 0);
   var sun   = SunCalc.getPosition(date, 41.3888, 2.159);
   var altDeg = sun.altitude * 180 / Math.PI;
   var filterBarri = document.getElementById("district-filter").value;
@@ -857,7 +889,9 @@ function fallbackSunOnly() {
 var _viewportTimer = null;
 // Bbox de l'últim fetch (en graus). Recalculem només si el viewport
 // actual surt fora d'aquest bbox — el zoom dins la mateixa zona no cal.
-var loadedBbox = null; // {s,w,n,e}
+var loadedBbox  = null;  // {s,w,n,e}
+var loadedZoom  = null;  // zoom level quan es van carregar els edificis
+var lastColors  = null;  // fingerprint de l'últim recolorat (hora+data+mode)
 
 function viewportInsideLoadedBbox() {
   if (!loadedBbox) return false;
@@ -868,18 +902,38 @@ function viewportInsideLoadedBbox() {
           b.getEast()  <= loadedBbox.e + 0.001);
 }
 
+function colorFingerprint() {
+  // Identificador únic de l'estat de colors actual
+  // Si no ha canviat, no cal recolorar
+  return getSelectedMinutes() + "|" +
+         (document.getElementById("date-input") ?
+           document.getElementById("date-input").value : "") + "|" +
+         (calcMode || "all");
+}
+
 function onViewportChange() {
   clearTimeout(_viewportTimer);
   _viewportTimer = setTimeout(function() {
     if (!buildingsLoaded) return;
-    // Si el viewport actual cau dins el bbox ja carregat → només recolorar
+
+    var currentZoom = map.getZoom();
+
+    // Zoom in: viewport s'encongeix → sempre dins el bbox → no cal res
+    // Els colors ja són correctes, el canvas es repinta sol per Leaflet
+    if (loadedZoom !== null && currentZoom > loadedZoom) return;
+
+    // Zoom out: viewport s'expandeix
+    // Si seguim dins el bbox carregat (amb marge) → no recalculem
     if (viewportInsideLoadedBbox()) {
-      recolorPoints(); // ràpid, sense Overpass
+      // Actualitzar loadedZoom perquè el proper zoom out
+      // compari correctament
+      loadedZoom = currentZoom;
       return;
     }
-    // Si surt del bbox → cal demanar edificis nous
+
+    // Pan fora del bbox O zoom out molt gran → cal edificis nous
     recalcWithShadows();
-  }, 600);
+  }, 500);
 }
 
 function setProgress(pct) {
@@ -1087,10 +1141,11 @@ function showPopup(d, marker, idx) {
 }
 
 function updateMap() {
-  var mins  = getSelectedMinutes();
-  var month = getSelectedMonth();
-  var hour  = Math.floor(mins / 60);
-  var minute = mins % 60;
+  var mins    = getSelectedMinutes();
+  var selDate = getSelectedDate();
+  var month   = selDate.getMonth();
+  var hour    = Math.floor(mins / 60);
+  var minute  = mins % 60;
   var filterBarri = document.getElementById("district-filter").value;
   currentHour = hour; currentMonth = month;
 
@@ -1098,7 +1153,7 @@ function updateMap() {
   document.getElementById("time-input").value = formatTime(mins);
 
   // Sun times display
-  var sunTimes = SunCalc.getTimes(new Date(2025, month, 15), 41.3888, 2.159);
+  var sunTimes = SunCalc.getTimes(selDate, 41.3888, 2.159);
   var srH = String(sunTimes.sunrise.getHours()).padStart(2,"0");
   var srM = String(sunTimes.sunrise.getMinutes()).padStart(2,"0");
   var ssH = String(sunTimes.sunset.getHours()).padStart(2,"0");
@@ -1107,7 +1162,8 @@ function updateMap() {
     "Sortida: <b>" + srH + ":" + srM + "</b><br>Posta: <b>" + ssH + ":" + ssM + "</b>";
 
   // Sun indicator
-  var sunPos = SunCalc.getPosition(new Date(2025, month, 15, hour, minute), 41.3888, 2.159);
+  var sunPos = SunCalc.getPosition(
+    new Date(selDate.getFullYear(), month, selDate.getDate(), hour, minute), 41.3888, 2.159);
   var altDeg = sunPos.altitude * 180 / Math.PI;
   var azDeg  = ((sunPos.azimuth * 180/Math.PI) + 180) % 360;
   var ind;
@@ -1162,7 +1218,13 @@ function updateMap() {
 function initControls() {
   function maybeAutoRecalc() {
     updateMap();
-    if (buildingsLoaded) setTimeout(recolorPoints, 80);
+    if (buildingsLoaded) {
+      var fp = colorFingerprint();
+      if (fp !== lastColors) {
+        lastColors = fp;
+        setTimeout(recolorPoints, 80);
+      }
+    }
   }
   document.getElementById("hour-slider").addEventListener("input", function() {
     syncInputToSlider(); maybeAutoRecalc();
@@ -1173,7 +1235,7 @@ function initControls() {
   document.getElementById("time-input").addEventListener("keydown", function(e) {
     if (e.key === "Enter") { syncSliderToInput(); maybeAutoRecalc(); }
   });
-  document.getElementById("month-select").addEventListener("change", maybeAutoRecalc);
+  document.getElementById("date-input").addEventListener("change", maybeAutoRecalc);
   document.getElementById("district-filter").addEventListener("change", function() {
     if (buildingsLoaded) recolorPoints(); else updateMap();
   });
@@ -1181,7 +1243,11 @@ function initControls() {
   var nowMins = Math.round((now.getHours()*60 + now.getMinutes()) / 5) * 5;
   document.getElementById("hour-slider").value = nowMins;
   document.getElementById("time-input").value = formatTime(nowMins);
-  document.getElementById("month-select").value = now.getMonth();
+  // Date input: avui per defecte
+  var todayStr = now.getFullYear() + "-" +
+    String(now.getMonth()+1).padStart(2,"0") + "-" +
+    String(now.getDate()).padStart(2,"0");
+  document.getElementById("date-input").value = todayStr;
 }
 
 </script>
