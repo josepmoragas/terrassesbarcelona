@@ -572,32 +572,45 @@ var _rafId = null;
 var _recolorQueue = null;
 
 function recolorPointsAsync(buildings, coveredVenuesLocal, sun) {
-  // Cancel·lar qualsevol recolorat anterior en curs
   if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
 
-  var altDeg = sun.altitude * 180 / Math.PI;
-  var filterBarri  = document.getElementById("district-filter").value;
+  var altDeg      = sun.altitude * 180 / Math.PI;
+  var filterBarri = document.getElementById("district-filter").value;
   var nSol = 0, nOmbraEdifici = 0, nNit = 0;
-  var idx = 0;
-  var BATCH = 400; // punts per frame
+  var pos   = 0;
+  var total = allData.length;
+  var BATCH = 300;
+
+  // Elements UI per al progrés
+  var progBar    = document.getElementById("shadow-progress");
+  var statusEl   = document.getElementById("shadow-status");
+  var statusMain = document.getElementById("status-main");
+
+  function setUIProgress(pct, msg) {
+    if (progBar)  progBar.style.width = pct + "%";
+    if (statusEl && msg) {
+      statusEl.className = "loading";
+      statusEl.innerHTML = msg;
+    }
+    if (statusMain) statusMain.textContent = Math.round(pct) + "% calculat...";
+  }
 
   function processBatch() {
-    var end = Math.min(idx + BATCH, allData.length);
-    for (; idx < end; idx++) {
-      var d  = allData[idx];
-      var mk = markers[idx];
+    var end = Math.min(pos + BATCH, total);
+
+    for (; pos < end; pos++) {
+      var d  = allData[pos];
+      var mk = markers[pos];
       var show = !filterBarri || d.barri === filterBarri;
-      if (!show) { mk.setStyle({opacity:0,fillOpacity:0}); continue; }
+      if (!show) { mk.setStyle({opacity:0, fillOpacity:0}); continue; }
 
       if (altDeg < 0) {
-        d.state = "nit"; nNit++;
+        d.state="nit"; nNit++;
         mk.setStyle({fillColor:"#222244",color:"#000020",fillOpacity:0.4,opacity:0.9,radius:3});
         continue;
       }
-
-      // Crowdsourcing toldo
       if (d.hasToldo) {
-        d.state = "toldo";
+        d.state="toldo";
         mk.setStyle({fillColor:"#9b59b6",color:"#6c3483",fillOpacity:0.9,opacity:0.9,radius:4.5});
         continue;
       }
@@ -625,24 +638,46 @@ function recolorPointsAsync(buildings, coveredVenuesLocal, sun) {
       }
     }
 
-    // Actualitzar stats parcialment mentre processa
-    document.getElementById("stat-sol").innerHTML   = "Amb sol: <b>"+nSol+"</b>";
-    document.getElementById("stat-ombra").innerHTML = "Ombra edifici: <b>"+nOmbraEdifici+"</b>";
+    var pct = Math.round((pos / total) * 100);
+    setUIProgress(pct,
+      "&#x231B; Calculant ombres... <b>" + pct + "%</b>" +
+      " &nbsp;(" + pos.toLocaleString() + " / " + total.toLocaleString() + " terrasses)");
 
-    if (idx < allData.length) {
+    // Stats en temps real
+    document.getElementById("stat-sol").innerHTML   = "Amb sol: <b>" + nSol + "</b>";
+    document.getElementById("stat-ombra").innerHTML = "Ombra edifici: <b>" + nOmbraEdifici + "</b>";
+
+    if (pos < total) {
       _rafId = requestAnimationFrame(processBatch);
     } else {
-      // Finalitzat
+      // ── Finalitzat ───────────────────────────────────────────
       _rafId = null;
-      document.getElementById("stat-nit").innerHTML = "Nit: <b>"+nNit+"</b>";
+      if (progBar) progBar.style.width = "100%";
+      document.getElementById("stat-nit").innerHTML = "Nit: <b>" + nNit + "</b>";
+
       var mesos = ["Gen","Feb","Mar","Abr","Mai","Jun","Jul","Ago","Set","Oct","Nov","Des"];
-      var mins = getSelectedMinutes();
-      document.getElementById("status-main").textContent =
-        formatTime(mins) + "h — " + mesos[getSelectedMonth()] +
-        " — " + buildings.length + " edificis";
+      var mins  = getSelectedMinutes();
+      var timeStr = formatTime(mins) + "h — " + mesos[getSelectedMonth()];
+
+      if (statusEl) {
+        statusEl.className = "ok";
+        statusEl.innerHTML =
+          "&#x2705; <b>" + nSol + "</b> sol &nbsp;|&nbsp;" +
+          "<b>" + nOmbraEdifici + "</b> ombra &nbsp;|&nbsp;" +
+          "<b>" + nNit + "</b> nit &nbsp;&mdash;&nbsp;" +
+          buildings.length + " edificis";
+      }
+      if (statusMain) statusMain.textContent = timeStr + " — " + buildings.length + " edificis";
+
+      // Reset progress bar after a moment
+      setTimeout(function() {
+        if (progBar) progBar.style.width = "0%";
+      }, 1500);
     }
   }
 
+  // Mostrar inici immediatament
+  setUIProgress(0, "&#x231B; Iniciant càlcul d'ombres...");
   _rafId = requestAnimationFrame(processBatch);
 }
 
@@ -1008,13 +1043,13 @@ function initMap() {
       radius:3.5, weight:0.8, opacity:.9, fillOpacity:.55,
       fillColor:"#aaaaaa", color:"#777777"
     });
-    mk.on("click", function() { showPopup(d, mk); });
+    mk.on("click", (function(dd, mmk, ii) { return function() { showPopup(dd, mmk, ii); }; })(d, mk, i));
     layerGroup.addLayer(mk);
     markers.push(mk);
   });
 }
 
-function showPopup(d, marker) {
+function showPopup(d, marker, idx) {
   var labels = {sol:"Sol directe",parcial:"Sol parcial",
                 ombra_edifici:"Ombra d'edifici",ombra:"Ombra",
                 toldo:"Cobert/Toldo (OSM)",
@@ -1030,7 +1065,7 @@ function showPopup(d, marker) {
     + '<div class="xp-popup-row"><span class="xp-popup-label">Estat (' + currentHour + 'h)</span>'
     +   '<span class="xp-popup-val">' + (labels[d.state]||"?") + '</span></div>'
     + '<div style="margin-top:6px;text-align:center">'
-    +   '<button onclick="reportToldo(' + i + ')" style="font-family:var(--font);font-size:10px;padding:3px 8px;background:linear-gradient(180deg,#e8e0f8,#c8b8e8);border:1px solid #9b59b6;border-radius:3px;cursor:pointer;color:#4a0e8f">'
+    +   '<button onclick="reportToldo(' + idx + ')" style="font-family:var(--font);font-size:10px;padding:3px 8px;background:linear-gradient(180deg,#e8e0f8,#c8b8e8);border:1px solid #9b59b6;border-radius:3px;cursor:pointer;color:#4a0e8f">'
     +   '&#x26F1;&#xFE0F; Aquesta terrassa t\u00e9 toldo</button>'
     + '</div>'
     + '</div>';
