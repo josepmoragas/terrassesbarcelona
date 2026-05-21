@@ -1,11 +1,20 @@
 <!DOCTYPE html>
 <html lang="ca">
 <head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-KMSR41H6HG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-KMSR41H6HG');
+</script>
 <meta charset="UTF-8">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☀️</text></svg>">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☀️</text></svg>">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Terrasses BCN &#x2600; &mdash; Sol i Ombra</title>
+<title>Terrasses Barcelona &#x2600; &mdash; Sol i Ombra</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
@@ -863,8 +872,12 @@ function pointInPolygon(pt, poly) {
 function isInBuildingShadow(pt, building, sunAlt, sunAz) {
   if (sunAlt <= 0.017) return false; // <1° → night/horizon
 
-  // Inside the building itself
-  if (pointInPolygon(pt, building.polygon)) return true;
+  // NOTA: NO marquem ombra si el punt cau dins del polígon de l'edifici.
+  // Les coordenades del CSV de Barcelona apunten al centroide de la finca
+  // (dins l'edifici), però la terrassa és a la VORERA, fora de l'edifici.
+  // Marcar "dins edifici = ombra" causaria falsos positius per totes les
+  // terrasses amb coordenades al centroide de la finca.
+  if (pointInPolygon(pt, building.polygon)) return false; // excloure edifici host
 
   // Shadow length in metres
   var shadowLen = building.height / Math.tan(sunAlt);
@@ -1110,7 +1123,12 @@ function recolorPointsAsync(buildings, coveredVenuesLocal, sun) {
         // Spatial index: consulta O(1) en lloc d'iterar tots els edificis
         var nearby = getBuildingsForPoint(d.lat, d.lng, buildings);
         for (var bi = 0; bi < nearby.length; bi++) {
-          if (isInBuildingShadow(pt, nearby[bi], sun.altitude, sun.azimuth)) {
+          var b = nearby[bi];
+          // Saltar l'edifici "host": el que conté les coordenades del local.
+          // Les coords del CSV apunten a la finca, no a la vorera exterior.
+          // L'ombra que ens interessa és la dels edificis VEÏNS.
+          if (pointInPolygon(pt, b.polygon)) continue;
+          if (isInBuildingShadow(pt, b, sun.altitude, sun.azimuth)) {
             inShadow = true; break;
           }
         }
