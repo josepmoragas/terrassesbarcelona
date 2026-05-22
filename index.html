@@ -59,6 +59,12 @@ html,body{height:100%;font-family:var(--font);font-size:11px;background:#235dbc;
   display:flex;align-items:center;padding:0 4px;gap:2px}
 .menu-item{padding:2px 8px;font-size:11px;cursor:pointer;border-radius:2px}
 .menu-item:hover{background:#2052a0;color:white}
+#geolocate-fab{display:none;position:fixed;bottom:246px;right:16px;z-index:7999;width:52px;height:52px;background:linear-gradient(135deg,#1a7a38,#2ecc71);border-radius:50%;box-shadow:0 3px 10px rgba(0,0,0,.4);align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:none;color:white;transition:transform .15s,background .3s}
+#geolocate-fab:active{transform:scale(.92)}
+#geolocate-fab.locating{background:linear-gradient(135deg,#b8860b,#f0c030);animation:pulse-geo 1s infinite}
+#geolocate-fab.located{background:linear-gradient(135deg,#185fa5,#4a7fd4)}
+@keyframes pulse-geo{0%,100%{box-shadow:0 3px 10px rgba(0,0,0,.4)}50%{box-shadow:0 3px 20px rgba(46,204,113,.7)}}
+@media(max-width:700px){#geolocate-fab{display:flex!important}}
 #toolbar{background:var(--xp-bg);border-bottom:1px solid var(--xp-border-mid);
   padding:3px 6px;display:flex;align-items:center;gap:8px}
 #content{flex:1;display:flex;overflow:hidden;background:white}
@@ -327,6 +333,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
 
   /* Popup més ample en mòbil */
   .xp-popup { width: 90vw !important; max-width: 340px; }
+
+  /* Barra hora flotant */
+  #mobile-time-bar {
+    display: flex !important;
+  }
+  /* Amagar el control d'hora dins el sheet en mobil (ja el tenim flotant) */
+  #sidebar .panel:first-of-type { display: none; }
   .leaflet-popup-content { margin: 0 !important; }
 
   /* Main window sense marges */
@@ -370,7 +383,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
   display: none;
   position: fixed;
   right: 16px;
-  z-index: 7999;
+  z-index: 8000;
   width: 52px; height: 52px;
   border-radius: 50%;
   box-shadow: 0 3px 10px rgba(0,0,0,.4);
@@ -384,16 +397,62 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
 }
 .mobile-fab-btn:active { transform: scale(.92); }
 
+/* Barra hora flotant mòbil */
+#mobile-time-bar {
+  display: none;
+  position: fixed;
+  bottom: 60px;
+  left: 0;
+  right: 0;
+  z-index: 7997;
+  background: rgba(255,255,255,0.97);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid #c0c8e0;
+  border-radius: 0;
+  padding: 8px 16px;
+  box-shadow: 0 -2px 8px rgba(0,0,0,.12);
+  gap: 8px;
+  align-items: center;
+}
+#mobile-time-bar input[type="range"] {
+  flex: 1;
+  accent-color: #2154b8;
+  height: 6px;
+}
+#mobile-time-display {
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  font-weight: bold;
+  color: #002060;
+  min-width: 46px;
+  text-align: center;
+}
+#mobile-calc-btn {
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: bold;
+  background: linear-gradient(180deg,#5b9bd4,#2060b0 45%,#1a4a90 55%,#3070c0);
+  color: white;
+  border: 1px solid #0a3070;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: var(--font);
+}
+#mobile-calc-btn.loading { background: linear-gradient(180deg,#b0b0b0,#808080); }
+
+
 /* FAB Ajustos — blau, més avall */
 #mobile-fab {
   background: linear-gradient(135deg, #2154b8, #4a7fd4);
-  bottom: 72px;
+  bottom: 122px;
 }
 /* FAB Favorits — vermell/rosa, sobre el d'ajustos */
 #mobile-fab-fav {
   background: linear-gradient(135deg, #c0392b, #e05060);
-  bottom: 134px;
+  bottom: 184px;
 }
+/* Geoloc ja esta a 196px en CSS general */
 #mobile-fab-fav-badge {
   position: absolute;
   top: -2px; right: -2px;
@@ -503,46 +562,42 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
         </div>
 
         <div class="panel">
-          <div class="panel-header">&#x1F550; Control d'Hora</div>
+          <div class="panel-header">&#x1F550; Control d'Hora i Data</div>
           <div class="panel-body">
+            <!-- Hora gran -->
+            <input type="time" id="time-input" value="12:00"
+              style="font-family:'Courier New',monospace;font-size:28px;font-weight:bold;
+              color:#003080;background:white;border:2px inset var(--xp-border-mid);
+              padding:4px 8px;letter-spacing:2px;width:100%;box-sizing:border-box;
+              margin-bottom:5px;display:block">
+            <!-- Data + Ara en una fila compacta -->
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-              <input type="time" id="time-input" value="12:00"
-                style="font-family:'Courier New',monospace;font-size:18px;font-weight:bold;
-                color:#003080;background:white;border:2px inset var(--xp-border-mid);
-                padding:3px 6px;letter-spacing:1px;flex:1;width:0">
+              <input type="date" id="date-input"
+                style="font-family:var(--font);font-size:11px;background:white;
+                border:1px inset var(--xp-border-mid);padding:2px 4px;
+                cursor:pointer;flex:1">
               <button onclick="setTimeNow()" title="Hora actual"
                 style="font-family:var(--font);font-size:10px;padding:3px 6px;
                 background:var(--xp-bg);border:1px outset var(--xp-border-mid);cursor:pointer;
                 white-space:nowrap">Ara</button>
             </div>
             <div class="xp-slider-wrap">
-              <label>Llisca per canviar l'hora:</label>
               <input type="range" id="hour-slider" min="0" max="1439" value="720" step="5">
             </div>
-            <div id="sol-indicator">&#x2600; Sol de migdia</div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-header">&#x1F4C5; Data</div>
-          <div class="panel-body">
-            <div class="xp-slider-wrap">
-              <label>Data exacta:</label>
-              <input type="date" id="date-input"
-                style="font-family:var(--font);font-size:11px;background:white;
-                border:1px inset var(--xp-border-mid);padding:2px 4px;width:100%;
-                margin-bottom:4px;cursor:pointer">
-            </div>
-            <div id="sun-times" style="font-size:10px;line-height:1.9;color:#333;border:1px inset #ccc;padding:4px;background:white">
-              &#x1F305; Sortida: &mdash;<br>&#x1F307; Posta: &mdash;
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div id="sol-indicator" style="flex:1">&#x2600; Sol de migdia</div>
+              <div id="sun-times" style="font-size:10px;color:#555;text-align:right">
+                &#x1F305;&mdash; &#x1F307;&mdash;
+              </div>
             </div>
           </div>
         </div>
 
         <div class="panel">
-          <div class="panel-header">&#x1F3DB; C&agrave;lcul d'Ombres (OSM)</div>
+          <div class="panel-header">&#x1F3DB; C&agrave;lcul d'Ombres</div>
           <div class="panel-body">
-            <button id="btn-calcular" onclick="calcular()">
+            <div style="display:flex;gap:5px;margin-bottom:5px"><button id="geo-btn" onclick="geolocateUser()" style="padding:6px;font-family:var(--font);font-size:12px;cursor:pointer;background:linear-gradient(180deg,#e8f5e9,#c8e6c9);border:1px solid #2e7d32;border-radius:3px;color:#1a4a1e;flex:1">📍 Geolocalitzar</button></div>
+<button id="btn-calcular" onclick="calcular()">
               &#x2600;&#xFE0F;&#x1F333; On hi ha sol i ombra?
             </button>
             <button id="recalc-btn" onclick="recalcWithShadows()"></button>
@@ -552,9 +607,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
             <div class="progress-wrap">
               <div class="progress-bar" id="shadow-progress"></div>
             </div>
-            <div style="font-size:10px;color:#666;margin-top:3px;line-height:1.5">
-              &#x1F4BE; Cache en mem&ograve;ria mentre navegues. Auto-recalcula en zoom/pan.
-            </div>
+
           </div>
         </div>
 
@@ -562,13 +615,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
           <div class="panel-header">&#x1F5FA; Llegenda</div>
           <div class="panel-body">
             <div class="legend-item"><div class="legend-dot" style="background:#ffcc00;border-color:#cc9900"></div><span><b>Sol directe</b></span></div>
-            <div class="legend-item"><div class="legend-dot" style="background:#ff8c00;border-color:#cc6600"></div><span><b>Sol parcial</b> (alba/capvespre)</span></div>
-            <div class="legend-item"><div class="legend-dot" style="background:#22aa44;border-color:#116622"></div><span><b>Ombra edifici</b> (OSM)</span></div>
-            <div class="legend-item"><div class="legend-dot" style="background:#aaaaaa;border-color:#777777"></div><span><b>Pendent</b> (prem Recalcular)</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ff8c00;border-color:#cc6600"></div><span><b>Sol parcial</b></span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#22aa44;border-color:#116622"></div><span><b>Ombra edifici</b></span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#aaaaaa;border-color:#777777"></div><span><b>Pendent</b></span></div>
             <div class="legend-item"><div class="legend-dot" style="background:#222244;border-color:#000020"></div><span><b>Nit</b></span></div>
-            <hr style="margin:5px 0;border-color:#ddd">
-            <div style="font-size:10px;color:#666;line-height:1.5">
-              &#x26A0; <i>No inclou ombres de balcons ni vegetaci&oacute;. Altures OSM: reals on disponibles, estimades (3.2m/planta) en altres.</i>
+            <div style="font-size:10px;color:#888;margin-top:5px">
+              ⚠ <i>No inclou ombres de balcons ni vegetació. Estimació.</i>
             </div>
           </div>
         </div>
@@ -613,11 +665,22 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
       &#x2699;&#xFE0F;
     </button>
 
+    <!-- FAB Geoloc -->
+    <button id="geolocate-fab" onclick="geolocateUser()" title="On soc?">📍</button>
+
     <!-- FAB Favorits -->
     <button id="mobile-fab-fav" class="mobile-fab-btn" onclick="openFavMobile()" title="Favorits" style="position:fixed">
       &#x2665;
       <span id="mobile-fab-fav-badge"></span>
     </button>
+
+    <!-- Barra hora flotant mòbil -->
+    <div id="mobile-time-bar">
+      <span id="mobile-time-display">12:00</span>
+      <input type="range" id="mobile-hour-slider" min="0" max="1439" value="720" step="5"
+        oninput="syncMobileSlider(this.value)">
+      <button id="mobile-calc-btn" onclick="calcular()">🌞🌳</button>
+    </div>
 
     <div id="statusbar">
       <div class="status-panel" style="flex:1" id="status-main">Llest</div>
@@ -889,10 +952,10 @@ function isInBuildingShadow(pt, building, sunAlt, sunAz) {
   // Convert to dX (east metres), dY (north metres)
   // SunCalc uses: az 0=S → sin(0)=0 east, cos(0)=-1 north... let's be explicit
   // Standard: N=0°, E=90°. SunCalc: S=0, so offset +180° for N=0 standard
-  var stdAz = sunAz + Math.PI; // now N=0, E=pi/2
-  var shadowStdAz = stdAz + Math.PI; // shadow opposite to sun
-  var dxM =  Math.sin(shadowStdAz) * shadowLen; // east
-  var dyM =  Math.cos(shadowStdAz) * shadowLen; // north
+  // SunCalc (0=S, sin=Est, cos=Nord) -> ombra oposada al sol:
+  // dxM = sin(sunAz) -> Est, dyM = cos(sunAz) -> Nord
+  var dxM =  Math.sin(sunAz) * shadowLen; // east (sin=Est en SunCalc)
+  var dyM =  Math.cos(sunAz) * shadowLen; // north (cos=Nord en SunCalc)
 
   var avgLat = building.clat;
   var dLat = mToLat(dyM);
@@ -996,10 +1059,9 @@ function buildSpatialIndex(buildings, sunAlt, sunAz) {
   if (sunAlt > 0.017) {
     shadowLen = Math.min(30 / Math.tan(sunAlt), 150); // cap a 150m
   }
-  var stdAz      = sunAz + Math.PI;
-  var shadowStdAz = stdAz + Math.PI;
-  var dLatMax    = Math.abs(Math.cos(shadowStdAz) * shadowLen) / 111320 + CELL_SIZE_LAT;
-  var dLngMax    = Math.abs(Math.sin(shadowStdAz) * shadowLen) / (111320 * 0.75) + CELL_SIZE_LNG;
+  // SunCalc: sin(az)=Est, cos(az)=Nord (ombra oposada al sol)
+  var dLatMax    = Math.abs(Math.cos(sunAz) * shadowLen) / 111320 + CELL_SIZE_LAT;
+  var dLngMax    = Math.abs(Math.sin(sunAz) * shadowLen) / (111320 * 0.75) + CELL_SIZE_LNG;
 
   for (var bi = 0; bi < buildings.length; bi++) {
     var b = buildings[bi];
@@ -1166,7 +1228,7 @@ function recolorPointsAsync(buildings, coveredVenuesLocal, sun) {
         statusEl.className = "ok";
         statusEl.innerHTML = "&#x2705; <b>" + nSol + "</b> sol &nbsp;|&nbsp;" +
           "<b>" + nOmbraEdifici + "</b> ombra &nbsp;|&nbsp;" +
-          "<b>" + nNit + "</b> nit &nbsp;&mdash;&nbsp;" + buildings.length + " edificis";
+          "<b>" + nNit + "</b> nit &nbsp;&mdash;&nbsp;";
       }
       if (statusMain) statusMain.textContent = timeStr + " — " + buildings.length + " edificis";
       lastColors = colorFingerprint();
@@ -1552,8 +1614,23 @@ function doSearch(q) {
     }
   }
   results.sort(function(a,b){return a.score-b.score||a.d.adr.localeCompare(b.d.adr);});
-  if (results.length>0) { showResults(results.slice(0,10),q); }
-  else { searchStreet(q); }
+  if (results.length>0) {
+    // Si sembla un carrer (no hi ha resultats de noms), afegir també les terrasses del carrer
+    var streetResults = searchTerracesByStreet(q);
+    if (streetResults.length > results.length) {
+      showResults(streetResults.slice(0,12), q);
+    } else {
+      showResults(results.slice(0,10), q);
+    }
+  } else {
+    // Cap resultat directe: buscar per carrer primer, Nominatim com a fallback
+    var streetOnly = searchTerracesByStreet(q);
+    if (streetOnly.length > 0) {
+      showResults(streetOnly.slice(0,12), q);
+    } else {
+      searchStreet(q);
+    }
+  }
 }
 
 function searchStreet(q) {
@@ -1577,11 +1654,16 @@ function searchStreet(q) {
     box.innerHTML=html;
     box.querySelectorAll(".search-result").forEach(function(el){
       el.addEventListener("click",function(){
-        map.setView([parseFloat(el.dataset.lat),parseFloat(el.dataset.lng)],17);
-        document.getElementById("search-input").value=el.querySelector(".search-result-addr").textContent.replace(/^📍 /,"");
-        document.getElementById("search-clear").style.display="block";
-        hideResults();
-      });
+          var lat=parseFloat(el.dataset.lat),lng=parseFloat(el.dataset.lng);
+          var rawT=el.querySelector(".search-result-addr").textContent;
+          var label=rawT.replace(/^🛩\s*/u,"").replace(/^📍\s*/u,"").trim()||rawT.trim();
+          map.setView([lat,lng],17);
+          document.getElementById("search-input").value=label;
+          document.getElementById("search-clear").style.display="block";
+          var onStreet=searchTerracesByStreet(label);
+          if(onStreet.length>0){ showResults(onStreet,label); }
+          else { hideResults(); }
+        });
     });
   })
   .catch(function(){box.innerHTML='<div class="search-no-results">Error cercant el carrer</div>';});
@@ -1617,7 +1699,8 @@ function selectResult(idx) {
   highlightMarker(idx);
   setTimeout(function(){showPopup(d,mk,idx);},300);
   hideResults();
-  document.getElementById("search-input").value=d.nom||d.adr;
+  var label=d.nom||d.adr;
+  document.getElementById("search-input").value=label;
   document.getElementById("search-clear").style.display="block";
 }
 
@@ -2024,6 +2107,99 @@ function initCalcularMobile() {
 }
 
 
+
+
+
+
+
+// =================================================================
+// GEOLOCALITZACIO
+// =================================================================
+var userMarker = null;
+var userAccCircle = null;
+
+function geolocateUser() {
+  var fab = document.getElementById("geolocate-fab");
+  var btn = document.getElementById("geo-btn");
+  if (!navigator.geolocation) {
+    alert("El teu navegador no suporta la geolocalitzaci\u00f3.");
+    return;
+  }
+  if (fab) { fab.classList.add("locating"); fab.innerHTML = "\u23F3"; }
+  if (btn) { btn.innerHTML = "\u23F3 Cercant..."; btn.disabled = true; }
+
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      var lat = pos.coords.latitude;
+      var lng = pos.coords.longitude;
+      var acc = Math.round(pos.coords.accuracy);
+      map.setView([lat, lng], 17);
+      if (userMarker)    map.removeLayer(userMarker);
+      if (userAccCircle) map.removeLayer(userAccCircle);
+      userMarker = L.circleMarker([lat, lng], {
+        radius:10, fillColor:"#1a7a38", color:"#fff",
+        fillOpacity:1, weight:3, zIndexOffset:9999
+      }).addTo(map).bindPopup("\uD83D\uDCCD <b>Ets aqu\u00ED</b><br>Precisi\u00F3: \u00B1" + acc + " m");
+      if (acc < 500) {
+        userAccCircle = L.circle([lat, lng], {
+          radius:acc, color:"#1a7a38", fillColor:"#2ecc71",
+          fillOpacity:0.08, weight:1.5, dashArray:"4 4", interactive:false
+        }).addTo(map);
+      }
+      if (fab) { fab.classList.remove("locating"); fab.classList.add("located"); fab.innerHTML = "\uD83E\uDDED"; }
+      if (btn) { btn.innerHTML = "\uD83D\uDCCD On soc?"; btn.disabled = false; }
+    },
+    function(err) {
+      if (fab) { fab.classList.remove("locating"); fab.innerHTML = "\uD83D\uDCCD"; }
+      if (btn) { btn.innerHTML = "\uD83D\uDCCD On soc?"; btn.disabled = false; }
+      var msgs = {
+        1: "Perm\u00EDs de geolocalitzaci\u00F3 denegat.\nActiva'l a la configuraci\u00F3 del navegador.",
+        2: "No s'ha pogut determinar la posici\u00F3.\nComprova que el GPS est\u00E0 activat.",
+        3: "Temps esgotat. Torna-ho a provar."
+      };
+      alert(msgs[err.code] || "Error de geolocalitzaci\u00F3.");
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+  );
+}
+
+// Terrasses d'un carrer concret
+function searchTerracesByStreet(streetName) {
+  if (!streetName) return [];
+  var up = streetName.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  up = up.replace(/^(C\.|AV\.|PG\.|PTGE\.|GV\.|RBLA\.|PL\.|RONDA|CARRER\s+DE\s+|CARRER\s+|AVINGUDA\s+DE\s+|AVINGUDA\s+|PASSEIG\s+DE\s+|PASSEIG\s+)\s*/,"").trim();
+  if (up.length < 3) return [];
+  var res = [];
+  for (var i=0; i<allData.length; i++) {
+    var d = allData[i];
+    var adrN = d.adr.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+    var adrStreet = adrN.replace(/^[A-Z]+\.\s+/,"").split(",")[0].trim();
+    if (adrStreet === up || adrStreet.startsWith(up+" ") || adrStreet.startsWith(up+",")) {
+      res.push({idx:i, d:d, score:0});
+    }
+  }
+  return res.slice(0,20);
+}
+
+
+function syncMobileSlider(val) {
+  var mainSlider = document.getElementById("hour-slider");
+  if (mainSlider) mainSlider.value = val;
+  var disp = document.getElementById("mobile-time-display");
+  var mins = parseInt(val);
+  if (disp) disp.textContent = formatTime(mins);
+  updateMap();
+}
+
+// Sync mobile display when main slider changes
+function updateMobileTimeDisplay() {
+  var val = getSelectedMinutes();
+  var mob = document.getElementById("mobile-hour-slider");
+  var disp = document.getElementById("mobile-time-display");
+  if (mob) mob.value = val;
+  if (disp) disp.textContent = formatTime(val);
+}
+
 window.onload = async function() {
   updateClock();
   setInterval(updateClock, 30000);
@@ -2258,7 +2434,7 @@ function updateMap() {
   var ssH = String(sunTimes.sunset.getHours()).padStart(2,"0");
   var ssM = String(sunTimes.sunset.getMinutes()).padStart(2,"0");
   document.getElementById("sun-times").innerHTML =
-    "Sortida: <b>" + srH + ":" + srM + "</b><br>Posta: <b>" + ssH + ":" + ssM + "</b>";
+    "\u{1f305} " + srH + ":" + srM + " &nbsp;\u{1f307} " + ssH + ":" + ssM;
 
   // Sun indicator
   var sunPos = SunCalc.getPosition(
@@ -2329,7 +2505,7 @@ function initControls() {
   // Slider i time-input: NOMÉS actualitzen la UI (indicador solar, hores)
   // El recalcul real és manual — botó "Recalcular"
   document.getElementById("hour-slider").addEventListener("input", function() {
-    syncInputToSlider(); updateMap();
+    syncInputToSlider(); updateMap(); updateMobileTimeDisplay();
   });
   document.getElementById("time-input").addEventListener("change", function() {
     syncSliderToInput(); updateMap();
@@ -2352,6 +2528,7 @@ function initControls() {
   document.getElementById("date-input").value = todayStr;
   initSearch();
   updateFavUI();
+  updateMobileTimeDisplay();
   // Restaurar toldos guardats als markers
   Object.keys(toldoReports).forEach(function(adr) {
     var idx = allData.findIndex(function(d){return d.adr===adr;});
