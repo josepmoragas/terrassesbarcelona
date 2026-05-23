@@ -11,6 +11,17 @@
   gtag('config', 'G-KMSR41H6HG');
 </script>
 <meta charset="UTF-8">
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-KMSR41H6HG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag("js", new Date());
+  gtag("config", "G-KMSR41H6HG", {
+    anonymize_ip: true,
+    cookie_flags: "SameSite=None;Secure"
+  });
+</script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☀️</text></svg>">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☀️</text></svg>">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1295,6 +1306,13 @@ function calcular() {
   btn.style.background = "";
   btn.classList.add("loading");
   btn.innerHTML = "&#x231B; Calculant...";
+  // Tracking: calcul d'ombres
+  var selDate = getSelectedDate();
+  trackEvent("calcular_ombres", {
+    hora: formatTime(getSelectedMinutes()),
+    mes: selDate.getMonth() + 1,
+    zoom: map ? map.getZoom() : 0
+  });
   recalcWithShadows();
 }
 
@@ -1656,6 +1674,11 @@ function searchStreet(q) {
       el.addEventListener("click",function(){
           var lat=parseFloat(el.dataset.lat),lng=parseFloat(el.dataset.lng);
           var rawT=el.querySelector(".search-result-addr").textContent;
+          // Tracking: cerca per carrer
+          trackEvent("cerca_carrer", {
+            query: document.getElementById("search-input").value || "",
+            lat: lat, lng: lng
+          });
           var label=rawT.replace(/^🛩\s*/u,"").replace(/^📍\s*/u,"").trim()||rawT.trim();
           map.setView([lat,lng],17);
           document.getElementById("search-input").value=label;
@@ -1695,6 +1718,14 @@ function showResults(results,q) {
 function selectResult(idx) {
   var d=allData[idx]; var mk=markers[idx];
   if(!d||!mk) return;
+  // Tracking: seleccio resultat cerca
+  trackEvent("cerca_seleccio", {
+    query: document.getElementById("search-input").value || "",
+    nom: d.nom || d.adr,
+    barri: d.barri,
+    lat: d.lat,
+    lng: d.lng
+  });
   map.setView([d.lat,d.lng],17);
   highlightMarker(idx);
   setTimeout(function(){showPopup(d,mk,idx);},300);
@@ -2134,6 +2165,8 @@ function geolocateUser() {
       var lng = pos.coords.longitude;
       var acc = Math.round(pos.coords.accuracy);
       map.setView([lat, lng], 17);
+      // Tracking: geolocalitzacio
+      trackEvent("geolocate_user", { lat: lat, lng: lng, precisio_m: acc });
       if (userMarker)    map.removeLayer(userMarker);
       if (userAccCircle) map.removeLayer(userAccCircle);
       userMarker = L.circleMarker([lat, lng], {
@@ -2198,6 +2231,18 @@ function updateMobileTimeDisplay() {
   var disp = document.getElementById("mobile-time-display");
   if (mob) mob.value = val;
   if (disp) disp.textContent = formatTime(val);
+}
+
+
+// ================================================================
+// GOOGLE ANALYTICS TRACKING
+// ================================================================
+function trackEvent(eventName, params) {
+  if (typeof gtag === "undefined") return;
+  // Anonimitzar coordenades a 2 decimals (~1km de precisio)
+  if (params.lat) params.lat = Math.round(params.lat * 100) / 100;
+  if (params.lng) params.lng = Math.round(params.lng * 100) / 100;
+  gtag("event", eventName, params);
 }
 
 window.onload = async function() {
@@ -2411,6 +2456,15 @@ function showPopup(d, marker, terrassaIdx) {
     '</div>';
 
   marker.bindPopup(html, {maxWidth:280, minWidth:260}).openPopup();
+  // Tracking: click sobre terrassa
+  trackEvent("click_terrassa", {
+    nom: d.nom || d.adr,
+    adr: d.adr,
+    barri: d.barri,
+    lat: d.lat,
+    lng: d.lng,
+    estat: d.state || "pendent"
+  });
   // Nom del local: del Cens Comercial BCN (instantani) o Overpass (fallback)
   fetchVenueName(d.nom || "", d.lat, d.lng, popupId);
 }
