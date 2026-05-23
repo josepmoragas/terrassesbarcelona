@@ -261,6 +261,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
 .leaflet-popup-content-wrapper{border-radius:4px!important;
   border:2px solid #2154b8!important;padding:0!important;overflow:hidden}
 .leaflet-popup-content{margin:0!important;padding:0!important}
+/* Canvas markers: cursor pointer per indicar que son clicables */
+.leaflet-interactive{cursor:pointer}
+.leaflet-popup-close-button{font-size:20px!important;width:28px!important;height:28px!important;color:#fff!important;background:#2154b8!important;border-radius:0 0 0 4px!important;top:0!important;right:0!important;line-height:28px!important;font-weight:bold!important;padding:0!important}
 .leaflet-popup-tip{background:#2154b8!important}
 
 /* ═══════════════════════════════════════════════════════════
@@ -1111,13 +1114,16 @@ function getBuildingsForPoint(lat, lng, buildings) {
   return result;
 }
 
+// Radis adaptatius: mes grans en mobil per facilitar el toc
+var _isMob = window.innerWidth <= 700 || ('ontouchstart' in window);
+var _r = _isMob ? 1.8 : 1.0; // factor amplificador en mobil
 var STYLES = {
-  sol:          {fillColor:"#ffcc00", color:"#cc9900", fillOpacity:0.9,  opacity:0.9,  radius:5},
-  parcial:      {fillColor:"#ff8c00", color:"#cc6600", fillOpacity:0.85, opacity:0.9,  radius:4},
-  ombra_edifici:{fillColor:"#22aa44", color:"#116622", fillOpacity:0.9,  opacity:0.9,  radius:4.5},
-  toldo:        {fillColor:"#9b59b6", color:"#6c3483", fillOpacity:0.9,  opacity:0.9,  radius:4.5},
-  nit:          {fillColor:"#222244", color:"#000020", fillOpacity:0.4,  opacity:0.9,  radius:3},
-  pendent:      {fillColor:"#aaaaaa", color:"#777777", fillOpacity:0.55, opacity:0.9,  radius:3.5},
+  sol:          {fillColor:"#ffcc00", color:"#cc9900", fillOpacity:0.9,  opacity:0.9,  radius:Math.round(5*_r)},
+  parcial:      {fillColor:"#ff8c00", color:"#cc6600", fillOpacity:0.85, opacity:0.9,  radius:Math.round(4*_r)},
+  ombra_edifici:{fillColor:"#22aa44", color:"#116622", fillOpacity:0.9,  opacity:0.9,  radius:Math.round(4.5*_r)},
+  toldo:        {fillColor:"#9b59b6", color:"#6c3483", fillOpacity:0.9,  opacity:0.9,  radius:Math.round(4.5*_r)},
+  nit:          {fillColor:"#222244", color:"#000020", fillOpacity:0.4,  opacity:0.9,  radius:Math.round(3*_r)},
+  pendent:      {fillColor:"#aaaaaa", color:"#777777", fillOpacity:0.55, opacity:0.9,  radius:Math.round(3.5*_r)},
   hidden:       {fillColor:"#aaaaaa", color:"#777777", fillOpacity:0,    opacity:0,    radius:3}
 };
 
@@ -2245,6 +2251,44 @@ function trackEvent(eventName, params) {
   gtag("event", eventName, params);
 }
 
+
+// ================================================================
+// ZONA DE TOC AMPLIADA PER MOBIL
+// El canvas renderer de Leaflet detecta clics per proximitat.
+// En mobil ampliem la tolerancia de 10px a 30px.
+// ================================================================
+function initTouchTolerance() {
+  if (!_isMob) return;
+  var canvas = document.querySelector(".leaflet-interactive");
+  if (!canvas) return;
+
+  // Patch: interceptar tap i buscar marcador mes proper
+  var lastTap = 0, lastX = 0, lastY = 0;
+
+  map.on("click", function(e) {
+    // Buscar el marcador mes proper al punt clicat
+    var clickPt = e.latlng;
+    var bestDist = Infinity, bestIdx = -1;
+    var TOLERANCE_M = map.getZoom() >= 16 ? 25 : 40; // metres de tolerancia
+
+    for (var i = 0; i < allData.length; i++) {
+      var d = allData[i];
+      if (!markers[i] || markers[i].options.fillOpacity === 0) continue;
+      var dist = clickPt.distanceTo(L.latLng(d.lat, d.lng));
+      if (dist < TOLERANCE_M && dist < bestDist) {
+        bestDist = dist;
+        bestIdx = i;
+      }
+    }
+
+    if (bestIdx >= 0) {
+      var d = allData[bestIdx];
+      var mk = markers[bestIdx];
+      showPopup(d, mk, bestIdx);
+    }
+  });
+}
+
 window.onload = async function() {
   updateClock();
   setInterval(updateClock, 30000);
@@ -2257,6 +2301,7 @@ window.onload = async function() {
   initMap();
   initControls();
   updateMap();
+  initTouchTolerance();
   initMobileSheet();
   initCalcularMobile();
   document.getElementById("loading").style.display = "none";
@@ -2374,100 +2419,237 @@ function showPopup(d, marker, terrassaIdx) {
   var mins    = getSelectedMinutes();
   var selDate = getSelectedDate();
   var hour    = Math.floor(mins/60), minute = mins%60;
-  var sunPos  = SunCalc.getPosition(
+
+  // ── Calcular evolució solar REAL per aquesta terrassa ─────────
+  // Escanejar les 24h: per cada hora, és de dia? Té ombra d'edifici?
+  var pt = { lat: d.lat, lng: d.lng };
+
+  // Agafar edificis propers del cache (si n'hi ha) o de BCN_BUILDINGS
+  var nearbyBuildings = [];
+  if (BCN_BUILDINGS) {
+    var margin = 0.003;
+    for (var bi = 0; bi < BCN_BUILDINGS.length; bi++) {
+      var b = BCN_BUILDINGS[bi];
+      if (Math.abs(b[0]-d.lat) < margin && Math.abs(b[1]-d.lng) < margin*1.3) {
+        nearbyBuildings.push({ clat:b[0], clng:b[1], height:b[2],
+          polygon: b[3].map(function(p){return {lat:p[0],lng:p[1]};}) });
+      }
+    }
+  }
+
+  var hourlyStates = []; // 'nit' | 'sol' | 'ombra'
+  var solHours = 0, ombraHours = 0;
+
+  for (var h = 0; h < 24; h++) {
+    var sp = SunCalc.getPosition(
+      new Date(selDate.getFullYear(), selDate.getMonth(), selDate.getDate(), h, 0),
+      d.lat, d.lng);
+    var altDeg_h = sp.altitude * 180 / Math.PI;
+    if (altDeg_h < 1) {
+      hourlyStates.push('nit');
+    } else if (nearbyBuildings.length > 0) {
+      var inShadow = false;
+      for (var bi2 = 0; bi2 < nearbyBuildings.length; bi2++) {
+        if (pointInPolygon(pt, nearbyBuildings[bi2].polygon)) continue;
+        if (isInBuildingShadow(pt, nearbyBuildings[bi2], sp.altitude, sp.azimuth)) {
+          inShadow = true; break;
+        }
+      }
+      hourlyStates.push(inShadow ? 'ombra' : 'sol');
+      if (inShadow) ombraHours++; else solHours++;
+    } else {
+      hourlyStates.push('sol');
+      solHours++;
+    }
+  }
+
+  var totalDayHours = solHours + ombraHours;
+  var solPct = totalDayHours > 0
+    ? Math.round(solHours / totalDayHours * 100)
+    : 0;
+
+  // Hora de canvi a partir de l'hora actual
+  var currentState = hourlyStates[hour] || 'nit';
+  var nextChangeHour = null, nextChangeState = null;
+  for (var h3 = hour + 1; h3 < 24; h3++) {
+    if (hourlyStates[h3] !== currentState) {
+      nextChangeHour = h3;
+      nextChangeState = hourlyStates[h3];
+      break;
+    }
+  }
+
+  // Text de canvi
+  var changeText = '';
+  if (currentState === 'sol' && nextChangeHour !== null) {
+    if (nextChangeState === 'ombra') {
+      changeText = '\u{1f333} Ombra a partir de les <b>'+nextChangeHour+'h</b>';
+    } else if (nextChangeState === 'nit') {
+      changeText = '\u{1f307} Sol fins a les <b>'+nextChangeHour+'h</b>';
+    }
+  } else if (currentState === 'ombra' && nextChangeHour !== null) {
+    if (nextChangeState === 'sol') {
+      changeText = '\u2600\ufe0f Sol a partir de les <b>'+nextChangeHour+'h</b>';
+    } else if (nextChangeState === 'nit') {
+      changeText = '\u{1f307} Ombra fins a les <b>'+nextChangeHour+'h</b>';
+    }
+  } else if (currentState === 'nit' && nextChangeHour !== null) {
+    changeText = '\u{1f305} Sol a partir de les <b>'+nextChangeHour+'h</b>';
+  }
+
+  // Posició solar actual
+  var sunPos = SunCalc.getPosition(
     new Date(selDate.getFullYear(), selDate.getMonth(), selDate.getDate(), hour, minute),
     d.lat, d.lng);
   var altDeg = (sunPos.altitude * 180/Math.PI).toFixed(1);
   var azDeg  = (((sunPos.azimuth * 180/Math.PI) + 180) % 360).toFixed(0);
 
   var stateInfo = {
-    sol:           {txt:"\u2600\ufe0f Sol directe a aquesta hora",  cls:"sol"},
-    parcial:       {txt:"\u{1f324}\ufe0f Sol rasant",              cls:"sol"},
-    ombra_edifici: {txt:"\u{1f333} A l'ombra d'un edifici",        cls:"ombra"},
-    ombra:         {txt:"\u{1f325}\ufe0f A l'ombra",               cls:"ombra"},
-    toldo:         {txt:"\u26f1\ufe0f Cobert / t\u00e9 toldo",     cls:"ombra"},
-    pendent:       {txt:"\u23f3 Prem Recalcular per saber-ho",      cls:"pendent"},
-    nit:           {txt:"\u{1f319} Nit \u2014 sense sol",           cls:"nit"}
+    sol:           {txt:"Sol directe",     cls:"sol",    icon:"\u2600\ufe0f"},
+    parcial:       {txt:"Sol rasant",       cls:"sol",    icon:"\u{1f324}\ufe0f"},
+    ombra_edifici: {txt:"Ombra d'edifici",  cls:"ombra",  icon:"\u{1f333}"},
+    ombra:         {txt:"A l'ombra",        cls:"ombra",  icon:"\u{1f325}\ufe0f"},
+    toldo:         {txt:"Toldo",            cls:"ombra",  icon:"\u26f1\ufe0f"},
+    pendent:       {txt:"Prem Recalcular",  cls:"pendent",icon:"\u23f3"},
+    nit:           {txt:"Nit",             cls:"nit",    icon:"\u{1f319}"}
   };
   var si = stateInfo[d.state] || stateInfo.pendent;
+
   var tipusVorera = d.tvorera>0 && d.tcalcada===0 ? "Vorera" :
                    d.tcalcada>0 && d.tvorera===0  ? "Cal\u00e7ada" : "Vorera+Cal\u00e7ada";
-  var popupId = "pp-"+terrassaIdx;
-  var margin  = 0.0004;
-  var osmEmbed= "https://www.openstreetmap.org/export/embed.html?bbox="+
-    (d.lng-margin)+","+(d.lat-margin)+","+(d.lng+margin)+","+(d.lat+margin)+
-    "&layer=mapnik&marker="+d.lat+","+d.lng;
+  var popupId  = "pp-"+terrassaIdx;
   var gmapsUrl = "https://www.google.com/maps/search/?api=1&query="+d.lat+","+d.lng;
   var gsvUrl   = "https://www.google.com/maps?q=&layer=c&cbll="+d.lat+","+d.lng;
+  var isFav    = isFavorite(terrassaIdx);
+
+  // Barra horaria 24h
+  var barSegs = '';
+  var segW = (100/24).toFixed(3);
+  for (var hi = 0; hi < 24; hi++) {
+    var st = hourlyStates[hi];
+    var bg = st==='nit'  ? '#1a1a3a'
+           : st==='ombra'? '#4a8a60'
+           : '#f0c030';
+    var isNow = (hi === hour);
+    barSegs += '<div title="'+hi+'h: '+(st==='nit'?'Nit':st==='ombra'?'Ombra':'Sol')+
+      '" style="flex:'+segW+';background:'+bg+';height:100%;'+
+      (isNow?'outline:2px solid #e05010;outline-offset:-2px;z-index:1;position:relative;':'')+
+      '"></div>';
+  }
 
   var html =
     '<div class="xp-popup">'+
-    '<div class="xp-popup-title">\u26f1\ufe0f Terrassa</div>'+
-    '<div class="xp-popup-name" id="'+popupId+'-name">\u23f3 Cercant nom...</div>'+
-    '<div class="xp-popup-addr">'+d.adr+' &bull; '+d.barri+
-      (d.act ? ' &bull; <i>'+d.act+'</i>' : '') +'</div>'+
-    '<div class="xp-popup-state '+si.cls+'">'+si.txt+'</div>'+
-    '<div class="xp-popup-grid">'+
-      '<div class="xp-popup-cell"><span class="xp-popup-cell-label">Taules</span>'+
-        '<span class="xp-popup-cell-val">'+d.taules+'</span></div>'+
-      '<div class="xp-popup-cell"><span class="xp-popup-cell-label">Cadires</span>'+
-        '<span class="xp-popup-cell-val">'+d.cadires+'</span></div>'+
-      '<div class="xp-popup-cell"><span class="xp-popup-cell-label">Superf\u00edcie</span>'+
-        '<span class="xp-popup-cell-val">'+(d.sup||'?')+' m\u00b2</span></div>'+
-      '<div class="xp-popup-cell"><span class="xp-popup-cell-label">Ubicaci\u00f3</span>'+
-        '<span class="xp-popup-cell-val">'+tipusVorera+'</span></div>'+
-      '<div class="xp-popup-cell"><span class="xp-popup-cell-label">Vig\u00e8ncia</span>'+
-        '<span class="xp-popup-cell-val">'+(d.vigencia==="A"?"Anual":"Temporada")+'</span></div>'+
-      '<div class="xp-popup-cell"><span class="xp-popup-cell-label">Sol '+formatTime(mins)+'h</span>'+
-        '<span class="xp-popup-cell-val">'+altDeg+'\u00b0 / '+azDeg+'\u00b0</span></div>'+
-    '</div>'+
-    '<div style="position:relative">'+
-    '<iframe class="xp-popup-gsv" id="map-iframe-'+terrassaIdx+'" '+
-      'src="https://maps.google.com/maps?q='+d.lat+','+d.lng+'&t=k&z=18&output=embed&hl=ca" '+
-      'loading="lazy" scrolling="no" title="Mapa sat\u00e8l\u00b7lit" '+
-      'style="border:0" referrerpolicy="no-referrer-when-downgrade"></iframe>'+
-    '<div style="position:absolute;top:4px;right:4px;display:flex;gap:3px">'+
-      '<button onclick="switchMapView('+terrassaIdx+',\'sat\')" title="Sat\u00e8l\u00b7lit" '+
-        'style="font-size:9px;padding:2px 5px;font-family:var(--font);cursor:pointer;'+
-        'background:rgba(255,255,255,.9);border:1px solid #ccc;border-radius:2px">&#x1F6F0; Sat</button>'+
-      '<button onclick="switchMapView('+terrassaIdx+',\'gsv\')" title="Street View" '+
-        'style="font-size:9px;padding:2px 5px;font-family:var(--font);cursor:pointer;'+
-        'background:rgba(255,255,255,.9);border:1px solid #ccc;border-radius:2px">&#x1F6B6; Carrer</button>'+
-    '</div>'+
-    '</div>'+
-    '<div class="xp-popup-btns">'+
-      '<a class="xp-popup-btn xp-popup-btn-maps" href="'+gmapsUrl+'" target="_blank">\u{1f4cd} Google Maps</a>'+
-      '<a class="xp-popup-btn xp-popup-btn-gsv"  href="'+gsvUrl+'"   target="_blank">\u{1f4f7} Street View</a>'+
-    '</div>'+
-    '<div class="xp-popup-btns" style="padding-top:0;gap:4px">'+
-      '<button class="xp-popup-btn" id="fav-btn-'+terrassaIdx+'" '+
-        'onclick="toggleFavorite('+terrassaIdx+')" '+
-        'style="flex:1;background:linear-gradient(180deg,#ffeedd,#e0c090);'+
-        'border:1px solid #b07800;color:#5a3800;font-size:10px;font-weight:bold;'+
-        'cursor:pointer;padding:4px;border-radius:2px">'+
-        (isFavorite(terrassaIdx) ? '\u2665 Treure de favorits' : '\u2661 Afegir a favorits')+
+
+    // HEADER
+    '<div class="xp-popup-title" style="display:flex;align-items:center;'+
+      'gap:6px;padding:5px 36px 5px 8px;min-height:34px">'+
+      '<button onclick="toggleFavorite('+terrassaIdx+')" id="fav-btn-'+terrassaIdx+'"'+
+        ' title="'+(isFav?'Treure de favorits':'Afegir a favorits')+'"'+
+        ' style="flex-shrink:0;width:26px;height:26px;border-radius:50%;border:2px solid;'+
+        'cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;'+
+        'background:'+(isFav?'#e05060':'rgba(255,255,255,0.2)')+';'+
+        'border-color:'+(isFav?'#c0392b':'rgba(255,255,255,0.6)')+';'+
+        'color:'+(isFav?'white':'rgba(255,255,255,0.9)')+';padding:0">'+
+        (isFav?'\u2665':'\u2661')+
       '</button>'+
-      '<button class="xp-popup-btn xp-popup-btn-toldo" id="toldo-btn-'+terrassaIdx+'" '+
-        'onclick="reportToldoToggle('+terrassaIdx+')" '+
-        'style="'+(d.hasToldo ? 'background:linear-gradient(180deg,#d4edda,#a8d5b5);border-color:#2e7d32;color:#1a4a1e' : '')+'">' +
+      '<span id="'+popupId+'-name" style="flex:1;font-size:12px;font-weight:bold;'+
+        'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:white">'+
+        '\u23f3 Cercant...</span>'+
+    '</div>'+
+
+    // ADREÇA
+    '<div class="xp-popup-addr" style="padding:3px 8px 4px">'+
+      d.adr+' &bull; '+d.barri+(d.act?' &bull; <i>'+d.act+'</i>':'')+
+    '</div>'+
+
+    // ESTAT + % real
+    '<div class="xp-popup-state '+si.cls+'" style="display:flex;align-items:center;'+
+      'justify-content:space-between;padding:6px 10px">'+
+      '<span style="font-size:13px">'+si.icon+' '+si.txt+'</span>'+
+      '<span style="font-size:22px;font-weight:bold;line-height:1">'+
+        solPct+'% <span style="font-size:14px">\u2600\ufe0f</span>'+
+      '</span>'+
+    '</div>'+
+
+    // BARRA 24h
+    '<div style="padding:0 8px 2px">'+
+      '<div style="display:flex;height:8px;border-radius:4px;overflow:hidden;'+
+        'border:1px solid #ccc" title="Evolució solar del dia">'+
+        barSegs+
+      '</div>'+
+      '<div style="display:flex;justify-content:space-between;font-size:9px;'+
+        'color:#888;margin-top:2px;padding:0 1px">'+
+        '<span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>24h</span>'+
+      '</div>'+
+      (changeText
+        ? '<div style="font-size:11px;color:#444;margin-top:3px;text-align:center;'+
+          'padding:2px 4px;background:#f8f8f8;border-radius:3px">'+changeText+'</div>'
+        : '')+
+    '</div>'+
+
+    // GRID
+    '<div class="xp-popup-grid" style="grid-template-columns:1fr 1fr 1fr">'+
+      '<div class="xp-popup-cell">'+
+        '<span class="xp-popup-cell-label">Taules / Cadires</span>'+
+        '<span class="xp-popup-cell-val">'+d.taules+' / '+d.cadires+'</span>'+
+      '</div>'+
+      '<div class="xp-popup-cell">'+
+        '<span class="xp-popup-cell-label">Superf\u00edcie</span>'+
+        '<span class="xp-popup-cell-val">'+(d.sup||'?')+' m\u00b2</span>'+
+      '</div>'+
+      '<div class="xp-popup-cell">'+
+        '<span class="xp-popup-cell-label">Ubicaci\u00f3</span>'+
+        '<span class="xp-popup-cell-val">'+tipusVorera+'</span>'+
+      '</div>'+
+    '</div>'+
+
+    // MAPA
+    '<div style="position:relative">'+
+      '<iframe class="xp-popup-gsv" id="map-iframe-'+terrassaIdx+'"'+
+        ' src="https://maps.google.com/maps?q='+d.lat+','+d.lng+'&t=k&z=18&output=embed&hl=ca"'+
+        ' loading="lazy" scrolling="no" style="border:0"'+
+        ' referrerpolicy="no-referrer-when-downgrade"></iframe>'+
+      '<div style="position:absolute;top:4px;right:4px;display:flex;gap:3px">'+
+        '<button onclick="switchMapView('+terrassaIdx+',\'sat\')"'+
+          ' style="font-size:9px;padding:2px 5px;font-family:var(--font);cursor:pointer;'+
+          'background:rgba(255,255,255,.9);border:1px solid #ccc;border-radius:2px">'+
+          '&#x1F6F0; Sat</button>'+
+        '<button onclick="switchMapView('+terrassaIdx+',\'gsv\')"'+
+          ' style="font-size:9px;padding:2px 5px;font-family:var(--font);cursor:pointer;'+
+          'background:rgba(255,255,255,.9);border:1px solid #ccc;border-radius:2px">'+
+          '&#x1F6B6; Carrer</button>'+
+      '</div>'+
+    '</div>'+
+
+    // BOTONS
+    '<div class="xp-popup-btns">'+
+      '<a class="xp-popup-btn xp-popup-btn-maps" href="'+gmapsUrl+'" target="_blank">'+
+        '\uD83D\uDCCD Google Maps</a>'+
+      '<a class="xp-popup-btn xp-popup-btn-gsv" href="'+gsvUrl+'" target="_blank">'+
+        '\uD83D\uDCF7 Street View</a>'+
+    '</div>'+
+    '<div style="padding:0 8px 6px">'+
+      '<button class="xp-popup-btn xp-popup-btn-toldo" id="toldo-btn-'+terrassaIdx+'"'+
+        ' onclick="reportToldoToggle('+terrassaIdx+')"'+
+        ' style="width:100%;'+(d.hasToldo?
+          'background:linear-gradient(180deg,#d4edda,#a8d5b5);border-color:#2e7d32;color:#1a4a1e':'')+'">' +
         (d.hasToldo ? '\u26f1\ufe0f Treure toldo (guardat)' : '\u26f1\ufe0f T\u00e9 toldo?')+
       '</button>'+
     '</div>'+
     '</div>';
 
-  marker.bindPopup(html, {maxWidth:280, minWidth:260}).openPopup();
-  // Tracking: click sobre terrassa
+  marker.bindPopup(html, {maxWidth:290, minWidth:270}).openPopup();
+
   trackEvent("click_terrassa", {
-    nom: d.nom || d.adr,
-    adr: d.adr,
-    barri: d.barri,
-    lat: d.lat,
-    lng: d.lng,
-    estat: d.state || "pendent"
+    nom: d.nom||d.adr, adr: d.adr, barri: d.barri,
+    lat: d.lat, lng: d.lng, estat: d.state||"pendent"
   });
-  // Nom del local: del Cens Comercial BCN (instantani) o Overpass (fallback)
-  fetchVenueName(d.nom || "", d.lat, d.lng, popupId);
+
+  fetchVenueName(d.nom||"", d.lat, d.lng, popupId);
 }
+
+
+
 
 function updateMap() {
   var mins    = getSelectedMinutes();
