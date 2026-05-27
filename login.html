@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Terrasses Barcelona ☀️ — Accés</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☀️</text></svg>">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Tahoma&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --xp-bg:#ece9d8;
+  --xp-border-mid:#c0c0c0;
+  --xp-blue-dark:#1a3f8a;
+  --xp-blue:#2154b8;
+  --xp-blue-light:#4a7fd4;
+  --font:'Tahoma','MS Sans Serif',sans-serif;
+}
+html,body{
+  height:100%;
+  font-family:var(--font);
+  font-size:11px;
+  background:#235dbc;
+  overflow:hidden;
+}
+
+/* ── DESKTOP ── */
+#desktop{
+  width:100vw;height:100vh;
+  display:flex;flex-direction:column;
+  background:linear-gradient(180deg,#1e5bbf 0%,#2a70e0 35%,#4a9ef8 65%,#83c1f5 85%,#b5d9f7 100%);
+  position:relative;
+}
+
+/* Icones escriptori */
+.desktop-icon{
+  position:absolute;
+  display:flex;flex-direction:column;align-items:center;
+  gap:4px;cursor:pointer;padding:6px;border-radius:4px;
+  user-select:none;width:72px;
+}
+.desktop-icon:hover{background:rgba(255,255,255,.15)}
+.desktop-icon-img{font-size:32px;line-height:1;filter:drop-shadow(1px 2px 3px rgba(0,0,0,.4))}
+.desktop-icon-label{
+  color:white;font-size:11px;text-align:center;
+  text-shadow:1px 1px 2px rgba(0,0,0,.8),0 0 6px rgba(0,0,0,.5);
+  line-height:1.2;word-break:break-word;
+}
+#icon-terrasses{top:20px;left:20px}
+#icon-mapa{top:110px;left:20px}
+#icon-ajuda{top:200px;left:20px}
+
+/* ── TASKBAR ── */
+#taskbar{
+  height:30px;min-height:30px;
+  background:linear-gradient(180deg,#2a5fc0,#1a3f8a 40%,#1a3888 60%,#2050b0);
+  display:flex;align-items:center;padding:0 2px;
+  border-top:1px solid #5082d8;gap:4px;z-index:10000;order:2;
+}
+#start-btn{
+  height:26px;padding:0 10px 0 8px;
+  background:linear-gradient(180deg,#5fba3f,#3f9a1f 40%,#2d8012 60%,#4aaa30);
+  border:1px solid #2a6010;border-radius:0 8px 8px 0;color:white;
+  font-family:var(--font);font-size:12px;font-weight:bold;cursor:pointer;
+  display:flex;align-items:center;gap:5px;
+  text-shadow:1px 1px 1px rgba(0,0,0,.5);
+  box-shadow:inset 1px 1px 0 rgba(255,255,255,.4),1px 1px 2px rgba(0,0,0,.4);
+  letter-spacing:.5px;margin-right:6px;
+}
+#start-btn:hover{filter:brightness(1.1)}
+.taskbar-window{
+  height:24px;padding:0 10px;
+  background:linear-gradient(180deg,#5b8fdc,#3060b0);
+  border:1px solid #1a3a8a;border-radius:3px;
+  color:white;font-size:11px;cursor:pointer;
+  display:flex;align-items:center;gap:5px;
+}
+.taskbar-window.active{
+  background:linear-gradient(180deg,#3060a0,#1a4080);
+  box-shadow:inset 1px 1px 2px rgba(0,0,0,.3);
+}
+#taskbar-clock{
+  margin-left:auto;color:white;font-size:11px;
+  padding:0 8px;border:1px solid rgba(0,0,0,.2);
+  background:rgba(0,0,0,.15);height:24px;
+  display:flex;align-items:center;
+}
+
+/* ── FINESTRA PRINCIPAL ── */
+#main-window{
+  flex:1;margin:6px;display:flex;flex-direction:column;
+  border:2px solid #404040;border-radius:8px 8px 0 0;
+  overflow:hidden;box-shadow:3px 3px 8px rgba(0,0,0,.5);order:1;
+}
+#titlebar{
+  height:30px;
+  background:linear-gradient(180deg,#4a7fd4,#2154b8 40%,#1a44a0 60%,#3264c8);
+  display:flex;align-items:center;padding:0 6px;gap:4px;user-select:none;
+}
+#titlebar-text{
+  flex:1;color:white;font-size:12px;font-weight:bold;
+  text-shadow:1px 1px 2px rgba(0,0,0,.6);letter-spacing:.3px;
+}
+.win-btn{
+  width:21px;height:21px;font-family:var(--font);font-size:11px;font-weight:bold;
+  cursor:pointer;border-radius:3px;display:flex;align-items:center;
+  justify-content:center;border:1px solid;
+}
+.win-btn-min,.win-btn-max{
+  background:linear-gradient(180deg,#d4e4f8,#9cbee8 50%,#6898d0);
+  border-color:#1a44a0;color:#000;
+}
+.win-btn-close{
+  background:linear-gradient(180deg,#f88,#d04040 50%,#a01010);
+  border-color:#600;color:white;font-size:13px;
+}
+.win-btn:hover{filter:brightness(1.15)}
+
+#window-body{
+  flex:1;background:var(--xp-bg);
+  display:flex;overflow:hidden;
+}
+
+/* ── LAYOUT DOS PANELLS ── */
+#left-pane{
+  width:220px;min-width:220px;
+  background:linear-gradient(180deg,#235dbc 0%,#1a4a9a 100%);
+  display:flex;flex-direction:column;
+  border-right:1px solid #1a3a8a;
+}
+#left-logo{
+  padding:20px 16px 16px;
+  border-bottom:1px solid rgba(255,255,255,.15);
+}
+#left-logo-icon{font-size:48px;display:block;text-align:center;margin-bottom:6px;
+  filter:drop-shadow(0 2px 8px rgba(0,0,0,.4));
+  animation:sunRotate 8s linear infinite;
+}
+@keyframes sunRotate{
+  0%{filter:drop-shadow(0 2px 8px rgba(0,0,0,.4)) brightness(1)}
+  50%{filter:drop-shadow(0 2px 16px rgba(255,220,50,.6)) brightness(1.1)}
+  100%{filter:drop-shadow(0 2px 8px rgba(0,0,0,.4)) brightness(1)}
+}
+#left-logo-title{
+  color:white;font-size:16px;font-weight:bold;text-align:center;
+  text-shadow:1px 1px 3px rgba(0,0,0,.6);letter-spacing:.3px;
+}
+#left-logo-sub{
+  color:rgba(255,255,255,.7);font-size:10px;text-align:center;
+  margin-top:3px;font-style:italic;
+}
+.left-nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 16px;color:rgba(255,255,255,.85);
+  font-size:11px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);
+  transition:background .1s;
+}
+.left-nav-item:hover{background:rgba(255,255,255,.12)}
+.left-nav-item.active{
+  background:rgba(255,255,255,.2);
+  color:white;font-weight:bold;
+  border-left:3px solid #fff;
+}
+.left-nav-icon{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.left-footer{
+  margin-top:auto;padding:12px 16px;
+  border-top:1px solid rgba(255,255,255,.1);
+  color:rgba(255,255,255,.5);font-size:10px;text-align:center;
+}
+
+#right-pane{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:var(--xp-bg);
+  overflow-y:auto;
+}
+
+/* ── PANEL LOGIN ── */
+.login-panel{
+  width:100%;max-width:340px;
+  border:2px solid #808080;
+  box-shadow:2px 2px 0 #fff inset,-1px -1px 0 #404040 inset,3px 3px 8px rgba(0,0,0,.3);
+}
+.login-panel-titlebar{
+  background:linear-gradient(180deg,#4a7fd4,#2154b8 40%,#1a44a0 60%,#3264c8);
+  padding:5px 8px;color:white;font-size:11px;font-weight:bold;
+  display:flex;align-items:center;gap:6px;
+  text-shadow:1px 1px 2px rgba(0,0,0,.5);
+}
+.login-panel-body{background:var(--xp-bg);padding:16px 18px 18px}
+
+.login-welcome{
+  text-align:center;margin-bottom:14px;
+}
+.login-welcome-title{
+  font-size:13px;font-weight:bold;color:#003080;margin-bottom:3px;
+}
+.login-welcome-sub{font-size:10px;color:#555;line-height:1.5}
+
+.login-divider{
+  display:flex;align-items:center;gap:8px;
+  margin:12px 0;color:#888;font-size:10px;
+}
+.login-divider::before,.login-divider::after{
+  content:'';flex:1;height:1px;background:#b0b0b0;
+}
+
+/* Botó Google */
+.btn-google{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:8px 12px;font-family:var(--font);font-size:12px;font-weight:bold;
+  background:linear-gradient(180deg,#f8f8f8,#e0e0e0 50%,#d0d0d0);
+  border:1px solid #707070;cursor:pointer;color:#222;
+  box-shadow:1px 1px 0 #fff inset,-1px -1px 0 #808080 inset;
+  transition:filter .1s;
+}
+.btn-google:hover{filter:brightness(1.05)}
+.btn-google:active{
+  background:linear-gradient(180deg,#d0d0d0,#e0e0e0);
+  box-shadow:-1px -1px 0 #fff inset,1px 1px 0 #808080 inset;
+}
+.btn-google:disabled{opacity:.5;cursor:not-allowed}
+.btn-google svg{width:18px;height:18px;flex-shrink:0}
+
+/* Separador email */
+.login-label{
+  display:block;font-weight:bold;color:#222;
+  margin-bottom:3px;margin-top:10px;font-size:11px;
+}
+.login-input{
+  width:100%;font-family:var(--font);font-size:11px;
+  border:2px inset #a0a0a0;padding:3px 5px;
+  background:white;outline:none;
+}
+.login-input:focus{border-color:#2154b8}
+
+.btn-primary{
+  width:100%;margin-top:10px;padding:5px 0;
+  font-family:var(--font);font-size:11px;font-weight:bold;
+  background:linear-gradient(180deg,#dde8fa,#a8c4ec 50%,#8aaedc);
+  border:1px solid #2154b8;cursor:pointer;color:#002060;
+  box-shadow:1px 1px 0 rgba(255,255,255,.7) inset;
+}
+.btn-primary:hover{background:linear-gradient(180deg,#eef2fc,#c0d4f4 50%,#a0c0e8)}
+.btn-primary:active{box-shadow:inset 1px 1px 2px rgba(0,0,0,.2)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+
+.login-switch{
+  text-align:center;margin-top:10px;font-size:10px;color:#555;
+}
+.login-switch a{color:#0000cc;cursor:pointer;text-decoration:underline}
+.login-switch a:hover{color:#0000ff}
+
+.login-error{
+  display:none;background:#fff0f0;border:1px solid #c04040;
+  color:#800000;font-size:10px;padding:5px 8px;margin-top:8px;
+}
+.login-error.visible{display:block}
+
+/* Panel usuari connectat */
+.user-panel{
+  text-align:center;padding:8px 0 4px;
+}
+.user-avatar{
+  width:56px;height:56px;border-radius:50%;
+  border:2px solid #2154b8;object-fit:cover;margin:0 auto 8px;display:block;
+}
+.user-initials{
+  width:56px;height:56px;border-radius:50%;
+  background:linear-gradient(135deg,#4a7fd4,#1a44a0);
+  color:white;font-size:20px;font-weight:bold;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 8px;border:2px solid #1a44a0;
+}
+.user-name{font-size:12px;font-weight:bold;color:#002060;margin-bottom:2px}
+.user-email{font-size:10px;color:#666;margin-bottom:12px}
+.btn-goto{
+  width:100%;padding:6px 0;margin-bottom:6px;
+  font-family:var(--font);font-size:11px;font-weight:bold;
+  background:linear-gradient(180deg,#5fba3f,#3f9a1f 40%,#2d8012 60%,#4aaa30);
+  border:1px solid #2a6010;cursor:pointer;color:white;
+  text-shadow:1px 1px 1px rgba(0,0,0,.4);
+  box-shadow:1px 1px 0 rgba(255,255,255,.3) inset;
+}
+.btn-goto:hover{filter:brightness(1.08)}
+.btn-logout{
+  width:100%;padding:4px 0;
+  font-family:var(--font);font-size:10px;
+  background:linear-gradient(180deg,#f8e8e8,#e8c0c0 50%,#d8a8a8);
+  border:1px solid #a04040;cursor:pointer;color:#800000;
+}
+.btn-logout:hover{background:linear-gradient(180deg,#ffe0e0,#f0b0b0 50%,#e09090)}
+
+/* ── MOBILE LAYOUT ── */
+@media (max-width:600px){
+  #left-pane{display:none}
+  #right-pane{padding:12px}
+  .login-panel{max-width:100%}
+  /* Simplified mobile header */
+  #mobile-top{
+    display:flex!important;
+    height:44px;
+    background:linear-gradient(180deg,#4a7fd4,#2154b8);
+    align-items:center;padding:0 12px;gap:8px;
+    border-bottom:1px solid #1a44a0;flex-shrink:0;
+  }
+  #mobile-top-icon{font-size:22px}
+  #mobile-top-title{color:white;font-size:13px;font-weight:bold;
+    text-shadow:1px 1px 2px rgba(0,0,0,.5)}
+}
+#mobile-top{display:none}
+
+/* Spinner */
+.spinner{
+  display:inline-block;width:12px;height:12px;
+  border:2px solid rgba(0,0,255,.2);border-top-color:#2154b8;
+  border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Mode mòbil de la finestra */
+@media (max-width:600px){
+  #main-window{margin:0;border-radius:0;border:none;flex:1}
+  #titlebar{display:none}
+  #desktop{background:linear-gradient(180deg,#1e5bbf,#4a9ef8)}
+  #taskbar{display:none}
+}
+
+/* Nota provisional */
+.provisional-badge{
+  background:#ffffe0;border:1px solid #c8c800;
+  font-size:10px;color:#666;padding:4px 8px;
+  text-align:center;margin-bottom:10px;
+}
+</style>
+</head>
+<body>
+<div id="desktop">
+
+  <!-- Icones escriptori (només desktop) -->
+  <div class="desktop-icon" id="icon-terrasses" onclick="window.location.href='/'">
+    <div class="desktop-icon-img">☀️</div>
+    <div class="desktop-icon-label">Terrasses Barcelona</div>
+  </div>
+  <div class="desktop-icon" id="icon-mapa" onclick="window.location.href='/'">
+    <div class="desktop-icon-img">🗺️</div>
+    <div class="desktop-icon-label">Obrir Mapa</div>
+  </div>
+  <div class="desktop-icon" id="icon-ajuda">
+    <div class="desktop-icon-img">❓</div>
+    <div class="desktop-icon-label">Ajuda</div>
+  </div>
+
+  <!-- Header mòbil -->
+  <div id="mobile-top">
+    <span id="mobile-top-icon">☀️</span>
+    <span id="mobile-top-title">Terrasses Barcelona</span>
+  </div>
+
+  <!-- Finestra principal -->
+  <div id="main-window">
+    <div id="titlebar">
+      <span style="font-size:14px">☀️</span>
+      <span id="titlebar-text">Terrasses Barcelona — Accés d'usuari</span>
+      <button class="win-btn win-btn-min" title="Minimitzar">_</button>
+      <button class="win-btn win-btn-max" title="Maximitzar">□</button>
+      <button class="win-btn win-btn-close" title="Tancar" onclick="window.location.href='/'">✕</button>
+    </div>
+
+    <div id="window-body">
+      <!-- Panell esquerre blau -->
+      <div id="left-pane">
+        <div id="left-logo">
+          <span id="left-logo-icon">☀️</span>
+          <div id="left-logo-title">Terrasses Barcelona</div>
+          <div id="left-logo-sub">Sol i Ombra en temps real</div>
+        </div>
+        <div class="left-nav-item active" id="nav-login">
+          <span class="left-nav-icon">🔑</span>
+          Accés / Registre
+        </div>
+        <div class="left-nav-item" onclick="window.location.href='/'">
+          <span class="left-nav-icon">🗺️</span>
+          Anar al Mapa
+        </div>
+        <div class="left-nav-item" id="nav-perfil" style="display:none" onclick="showProfileView()">
+          <span class="left-nav-icon">👤</span>
+          El meu perfil
+        </div>
+        <div class="left-nav-item">
+          <span class="left-nav-icon">⭐</span>
+          Els meus favorits
+        </div>
+        <div class="left-nav-item">
+          <span class="left-nav-icon">⛱️</span>
+          Toldos guardats
+        </div>
+        <div class="left-nav-item">
+          <span class="left-nav-icon">❓</span>
+          Ajuda
+        </div>
+        <div class="left-footer">
+          Terrasses Barcelona v1.0<br>
+          © 2025 Josep Moragas
+        </div>
+      </div>
+
+      <!-- Panell dret: contingut -->
+      <div id="right-pane">
+
+        <!-- Vista: Login -->
+        <div id="view-login" class="login-panel">
+          <div class="login-panel-titlebar">
+            🔑 Accés a Terrasses Barcelona
+          </div>
+          <div class="login-panel-body">
+            <div class="provisional-badge">
+              ⚠️ Pàgina provisional — en construcció
+            </div>
+
+            <div class="login-welcome">
+              <div class="login-welcome-title">Benvingut/da!</div>
+              <div class="login-welcome-sub">
+                Inicia sessió per guardar favorits,<br>
+                recordar toldos i sincronitzar entre dispositius.
+              </div>
+            </div>
+
+            <!-- Google -->
+            <button class="btn-google" id="btn-google" onclick="doGoogleLogin()">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              </svg>
+              Continua amb Google
+            </button>
+
+            <div class="login-divider">o bé amb correu electrònic</div>
+
+            <!-- Email/Password -->
+            <div id="view-signin">
+              <label class="login-label">Correu electrònic</label>
+              <input type="email" class="login-input" id="email-input" placeholder="nom@exemple.com" autocomplete="email">
+              <label class="login-label">Contrasenya</label>
+              <input type="password" class="login-input" id="pass-input" placeholder="••••••••" autocomplete="current-password"
+                onkeydown="if(event.key==='Enter')doEmailLogin()">
+              <button class="btn-primary" id="btn-email-login" onclick="doEmailLogin()">
+                Inicia sessió
+              </button>
+              <div class="login-switch">
+                No tens compte? <a onclick="showRegisterView()">Registra't</a>
+                &nbsp;·&nbsp;
+                <a onclick="showResetView()">Contrasenya oblidada?</a>
+              </div>
+            </div>
+
+            <!-- Registre -->
+            <div id="view-register" style="display:none">
+              <label class="login-label">Nom</label>
+              <input type="text" class="login-input" id="reg-name" placeholder="El teu nom">
+              <label class="login-label">Correu electrònic</label>
+              <input type="email" class="login-input" id="reg-email" placeholder="nom@exemple.com" autocomplete="email">
+              <label class="login-label">Contrasenya</label>
+              <input type="password" class="login-input" id="reg-pass" placeholder="Mínim 6 caràcters" autocomplete="new-password">
+              <button class="btn-primary" id="btn-register" onclick="doRegister()">
+                Crear compte
+              </button>
+              <div class="login-switch">
+                Ja tens compte? <a onclick="showSigninView()">Inicia sessió</a>
+              </div>
+            </div>
+
+            <!-- Reset password -->
+            <div id="view-reset" style="display:none">
+              <div style="font-size:10px;color:#555;margin-bottom:6px;line-height:1.5">
+                Introdueix el teu correu i t'enviarem un enllaç per restablir la contrasenya.
+              </div>
+              <label class="login-label">Correu electrònic</label>
+              <input type="email" class="login-input" id="reset-email" placeholder="nom@exemple.com">
+              <button class="btn-primary" id="btn-reset" onclick="doResetPassword()">
+                Enviar enllaç
+              </button>
+              <div class="login-switch">
+                <a onclick="showSigninView()">← Tornar</a>
+              </div>
+            </div>
+
+            <div class="login-error" id="login-error"></div>
+          </div>
+        </div>
+
+        <!-- Vista: Usuari connectat -->
+        <div id="view-user" class="login-panel" style="display:none">
+          <div class="login-panel-titlebar">
+            👤 El teu compte
+          </div>
+          <div class="login-panel-body">
+            <div class="user-panel">
+              <img id="user-avatar-img" class="user-avatar" src="" alt="" style="display:none">
+              <div id="user-avatar-initials" class="user-initials" style="display:none"></div>
+              <div id="user-name" class="user-name"></div>
+              <div id="user-email" class="user-email"></div>
+            </div>
+            <button class="btn-goto" onclick="window.location.href='/'">
+              🗺️ Anar al Mapa
+            </button>
+            <button class="btn-logout" onclick="doLogout()">
+              Tancar sessió
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /right-pane -->
+    </div><!-- /window-body -->
+  </div><!-- /main-window -->
+
+  <!-- Taskbar -->
+  <div id="taskbar">
+    <button id="start-btn">
+      <span style="font-size:16px">⊞</span> Inici
+    </button>
+    <div class="taskbar-window active">
+      <span>🔑</span> Accés — Terrasses Barcelona
+    </div>
+    <div id="taskbar-clock"></div>
+  </div>
+
+</div><!-- /desktop -->
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import {
+    getAuth, signInWithPopup, signInWithEmailAndPassword,
+    createUserWithEmailAndPassword, sendPasswordResetEmail,
+    GoogleAuthProvider, signOut, onAuthStateChanged, updateProfile
+  } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+  const firebaseConfig = {
+    apiKey:            "AIzaSyBfTgX7-M_PCNSQXuX7VWEihIGDj-WWihs",
+    authDomain:        "terrasses.cat",
+    projectId:         "terrasses-ea468",
+    storageBucket:     "terrasses-ea468.firebasestorage.app",
+    messagingSenderId: "552671690419",
+    appId:             "1:552671690419:web:61db7108c4d563c5763ac6",
+    measurementId:     "G-8T7TWV2FDE"
+  };
+
+  const app          = initializeApp(firebaseConfig);
+  const auth         = getAuth(app);
+  const googleProv   = new GoogleAuthProvider();
+
+  // ── Auth state ──
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      showUserPanel(user);
+    } else {
+      document.getElementById('view-login').style.display = '';
+      document.getElementById('view-user').style.display  = 'none';
+      document.getElementById('nav-perfil').style.display = 'none';
+    }
+  });
+
+  function showUserPanel(user) {
+    document.getElementById('view-login').style.display = 'none';
+    document.getElementById('view-user').style.display  = '';
+    document.getElementById('nav-perfil').style.display = '';
+
+    const name  = user.displayName || user.email.split('@')[0];
+    const email = user.email;
+    document.getElementById('user-name').textContent  = name;
+    document.getElementById('user-email').textContent = email;
+
+    const imgEl  = document.getElementById('user-avatar-img');
+    const initEl = document.getElementById('user-avatar-initials');
+    if (user.photoURL) {
+      imgEl.src = user.photoURL;
+      imgEl.style.display  = 'block';
+      initEl.style.display = 'none';
+    } else {
+      initEl.textContent   = name.charAt(0).toUpperCase();
+      initEl.style.display = 'flex';
+      imgEl.style.display  = 'none';
+    }
+  }
+
+  function setLoading(btnId, loading) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.disabled = loading;
+    if (loading) {
+      btn._orig = btn.innerHTML;
+      btn.innerHTML = '<span class="spinner"></span> Espera...';
+    } else {
+      btn.innerHTML = btn._orig || btn.innerHTML;
+    }
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('login-error');
+    el.textContent = msg;
+    el.classList.add('visible');
+  }
+  function clearError() {
+    document.getElementById('login-error').classList.remove('visible');
+  }
+
+  // ── Google login ──
+  window.doGoogleLogin = () => {
+    clearError();
+    setLoading('btn-google', true);
+    signInWithPopup(auth, googleProv)
+      .then(() => { /* onAuthStateChanged ho gestiona */ })
+      .catch((e) => {
+        setLoading('btn-google', false);
+        if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+          showError('Error Google: ' + e.code);
+        }
+      });
+  };
+
+  // ── Email login ──
+  window.doEmailLogin = () => {
+    clearError();
+    const email = document.getElementById('email-input').value.trim();
+    const pass  = document.getElementById('pass-input').value;
+    if (!email || !pass) { showError('Omple el correu i la contrasenya.'); return; }
+    setLoading('btn-email-login', true);
+    signInWithEmailAndPassword(auth, email, pass)
+      .catch((e) => {
+        setLoading('btn-email-login', false);
+        const msgs = {
+          'auth/user-not-found': 'No existeix cap compte amb aquest correu.',
+          'auth/wrong-password': 'Contrasenya incorrecta.',
+          'auth/invalid-email':  'Format de correu no vàlid.',
+          'auth/too-many-requests': 'Massa intents. Espera uns minuts.',
+        };
+        showError(msgs[e.code] || 'Error: ' + e.code);
+      });
+  };
+
+  // ── Registre ──
+  window.doRegister = () => {
+    clearError();
+    const name  = document.getElementById('reg-name').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const pass  = document.getElementById('reg-pass').value;
+    if (!email || !pass) { showError('Omple tots els camps.'); return; }
+    if (pass.length < 6) { showError('La contrasenya ha de tenir mínim 6 caràcters.'); return; }
+    setLoading('btn-register', true);
+    createUserWithEmailAndPassword(auth, email, pass)
+      .then((cred) => {
+        if (name) return updateProfile(cred.user, { displayName: name });
+      })
+      .catch((e) => {
+        setLoading('btn-register', false);
+        const msgs = {
+          'auth/email-already-in-use': 'Aquest correu ja té un compte. Inicia sessió.',
+          'auth/invalid-email':        'Format de correu no vàlid.',
+          'auth/weak-password':        'La contrasenya és massa feble.',
+        };
+        showError(msgs[e.code] || 'Error: ' + e.code);
+      });
+  };
+
+  // ── Reset password ──
+  window.doResetPassword = () => {
+    clearError();
+    const email = document.getElementById('reset-email').value.trim();
+    if (!email) { showError('Introdueix el teu correu.'); return; }
+    setLoading('btn-reset', true);
+    sendPasswordResetEmail(auth, email)
+      .then(() => {
+        setLoading('btn-reset', false);
+        showError('✅ Correu enviat! Revisa la teva safata d\'entrada.');
+        document.getElementById('login-error').style.background = '#f0fff0';
+        document.getElementById('login-error').style.borderColor = '#40a040';
+        document.getElementById('login-error').style.color = '#005000';
+      })
+      .catch((e) => {
+        setLoading('btn-reset', false);
+        showError('Error: ' + e.code);
+      });
+  };
+
+  // ── Logout ──
+  window.doLogout = () => signOut(auth);
+
+  // ── Vista switch ──
+  function hideAllSubviews() {
+    ['view-signin','view-register','view-reset'].forEach(id => {
+      document.getElementById(id).style.display = 'none';
+    });
+    clearError();
+  }
+  window.showSigninView   = () => { hideAllSubviews(); document.getElementById('view-signin').style.display   = ''; };
+  window.showRegisterView = () => { hideAllSubviews(); document.getElementById('view-register').style.display = ''; };
+  window.showResetView    = () => { hideAllSubviews(); document.getElementById('view-reset').style.display    = ''; };
+  window.showProfileView  = () => {};
+
+  // ── Rellotge taskbar ──
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('taskbar-clock').textContent =
+      now.toLocaleTimeString('ca-ES', {hour:'2-digit',minute:'2-digit'});
+  }
+  updateClock();
+  setInterval(updateClock, 10000);
+</script>
+</body>
+</html>
