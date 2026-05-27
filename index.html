@@ -1,32 +1,12 @@
 <!DOCTYPE html>
 <html lang="ca">
 <head>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-KMSR41H6HG"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-KMSR41H6HG');
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Terrasses BCN">
 <meta name="theme-color" content="#1a6bb5">
-<!-- Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-KMSR41H6HG"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag("js", new Date());
-  gtag("config", "G-KMSR41H6HG", {
-    anonymize_ip: true,
-    cookie_flags: "SameSite=None;Secure"
-  });
-</script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☀️</text></svg>">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☀️</text></svg>">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1371,8 +1351,8 @@ body {
   import { getFirestore, doc, getDoc, setDoc, updateDoc, increment,
            collection, addDoc, serverTimestamp, onSnapshot }
     from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-  import { getAuth, signInWithPopup, GoogleAuthProvider,
-           OAuthProvider, signOut, onAuthStateChanged }
+  import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult,
+           GoogleAuthProvider, OAuthProvider, signOut, onAuthStateChanged }
     from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
   import { getAnalytics, logEvent }
     from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics.js';
@@ -1381,7 +1361,7 @@ body {
   // Els trobaràs a: Firebase Console > Configuració > Les teves apps > Web
   const firebaseConfig = {
     apiKey:            "AIzaSyBfTgX7-M_PCNSQXuX7VWEihIGDj-WWihs",
-    authDomain:        "terrasses-ea468.firebaseapp.com",
+    authDomain:        "terrasses.cat",
     projectId:         "terrasses-ea468",
     storageBucket:     "terrasses-ea468.firebasestorage.app",
     messagingSenderId: "552671690419",
@@ -1422,8 +1402,25 @@ body {
     if (typeof onUserChanged === 'function') onUserChanged(user);
   });
 
-  window.loginGoogle = () => signInWithPopup(auth, window.googleProvider);
-  window.loginApple  = () => signInWithPopup(auth, window.appleProvider);
+  // Capturar resultat de redirect (Google/Apple redirigeix de tornada aquí)
+  getRedirectResult(auth).then((result) => {
+    if (result && result.user) {
+      window.currentUser = result.user;
+      if (typeof onUserChanged === 'function') onUserChanged(result.user);
+      if (typeof closeAuthModal === 'function') closeAuthModal();
+    }
+  }).catch((e) => {
+    console.error('Redirect auth error:', e.code, e.message);
+    if (typeof showAuthError === 'function' && e.code !== 'auth/no-current-user') {
+      showAuthError(e.code === 'auth/popup-closed-by-user'
+        ? 'Has cancel·lat l\'inici de sessió.'
+        : 'Error en el login: ' + e.code);
+    }
+  });
+
+  // Usa redirect (compatible amb mòbil i Safari) en comptes de popup
+  window.loginGoogle = () => signInWithRedirect(auth, window.googleProvider);
+  window.loginApple  = () => signInWithRedirect(auth, window.appleProvider);
   window.logoutUser  = () => signOut(auth);
 
   console.log('Firebase inicialitzat');
