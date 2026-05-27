@@ -1351,7 +1351,7 @@ body {
   import { getFirestore, doc, getDoc, setDoc, updateDoc, increment,
            collection, addDoc, serverTimestamp, onSnapshot }
     from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-  import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult,
+  import { getAuth, signInWithRedirect, getRedirectResult,
            GoogleAuthProvider, OAuthProvider, signOut, onAuthStateChanged }
     from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
   import { getAnalytics, logEvent }
@@ -4225,16 +4225,14 @@ function initControls() {
   function handleLoginGoogle() {
     clearAuthError();
     if (!window.loginGoogle) { showAuthError('Firebase no disponible.'); return; }
-    window.loginGoogle()
-      .then(function(){ closeAuthModal(); })
-      .catch(function(e){ showAuthError(authErrorMsg(e.code)); });
+    // signInWithRedirect recarrega la pàgina: NO encadenar .then()/.catch()
+    // El resultat es captura a getRedirectResult() quan la pàgina torna a carregar
+    window.loginGoogle();
   }
   function handleLoginApple() {
     clearAuthError();
     if (!window.loginApple) { showAuthError('Firebase no disponible.'); return; }
-    window.loginApple()
-      .then(function(){ closeAuthModal(); })
-      .catch(function(e){ showAuthError(authErrorMsg(e.code)); });
+    window.loginApple();
   }
   function handleLoginEmail() {
     var email = document.getElementById('auth-email').value.trim();
