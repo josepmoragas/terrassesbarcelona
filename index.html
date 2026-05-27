@@ -3497,11 +3497,18 @@ function updateMobileTimeDisplay() {
 // GOOGLE ANALYTICS TRACKING
 // ================================================================
 function trackEvent(eventName, params) {
-  if (typeof gtag === "undefined") return;
-  // Anonimitzar coordenades a 2 decimals (~1km de precisio)
+  params = params || {};
+  // Anonimitzar coordenades a 2 decimals (~1km de precisió)
   if (params.lat) params.lat = Math.round(params.lat * 100) / 100;
   if (params.lng) params.lng = Math.round(params.lng * 100) / 100;
-  gtag("event", eventName, params);
+  // Firebase Analytics (principal)
+  if (typeof window.fbLog === 'function') {
+    window.fbLog(eventName, params);
+  }
+  // gtag com a fallback si existeix
+  if (typeof gtag === 'function') {
+    gtag('event', eventName, params);
+  }
 }
 
 
