@@ -1604,16 +1604,40 @@ body {
           </div>
         </div>
 
-        <div class="panel">
-          <div class="panel-header">&#x1F5FA; Llegenda</div>
-          <div class="panel-body">
-            <div class="legend-item"><div class="legend-dot" style="background:#ffcc00;border-color:#cc9900"></div><span><b>Sol directe</b></span></div>
-            <div class="legend-item"><div class="legend-dot" style="background:#ff8c00;border-color:#cc6600"></div><span><b>Sol parcial</b></span></div>
-            <div class="legend-item"><div class="legend-dot" style="background:#22aa44;border-color:#116622"></div><span><b>Ombra edifici</b></span></div>
-            <div class="legend-item"><div class="legend-dot" style="background:#aaaaaa;border-color:#777777"></div><span><b>Pendent</b></span></div>
-            <div class="legend-item"><div class="legend-dot" style="background:#222244;border-color:#000020"></div><span><b>Nit</b></span></div>
-            <div style="font-size:10px;color:#888;margin-top:5px">
-              ⚠ <i>No inclou ombres de balcons ni vegetació. Estimació.</i>
+        <div class="panel" id="panel-user-session">
+          <div class="panel-header" id="panel-session-header">&#x1F464; Sessi&oacute;</div>
+          <div class="panel-body" id="panel-session-body">
+            <!-- Contingut dinàmic via JS -->
+            <div id="session-logged-out" style="display:block">
+              <div style="font-size:12px;color:#555;margin-bottom:8px">Entra per guardar favorits i escriure reviews.</div>
+              <button class="auth-primary-btn" style="width:100%;font-size:12px;padding:7px" onclick="openAuthModal()">&#x1F464; Iniciar sessi&oacute;</button>
+            </div>
+            <div id="session-logged-in" style="display:none">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                <div id="sidebar-avatar" style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0;background:#ccc;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:15px;color:#fff"></div>
+                <div>
+                  <div id="sidebar-name" style="font-weight:bold;font-size:13px"></div>
+                  <div id="sidebar-email" style="font-size:10px;color:#777"></div>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;margin-bottom:8px">
+                <div style="flex:1;text-align:center;background:#f0f4ff;border-radius:6px;padding:5px 2px">
+                  <div id="sidebar-stat-favs" style="font-size:18px;font-weight:bold;color:#1a6bb5">0</div>
+                  <div style="font-size:10px;color:#777">Favorits</div>
+                </div>
+                <div style="flex:1;text-align:center;background:#f0f4ff;border-radius:6px;padding:5px 2px">
+                  <div id="sidebar-stat-reviews" style="font-size:18px;font-weight:bold;color:#1a6bb5">0</div>
+                  <div style="font-size:10px;color:#777">Reviews</div>
+                </div>
+                <div style="flex:1;text-align:center;background:#f0f4ff;border-radius:6px;padding:5px 2px">
+                  <div id="sidebar-stat-toldos" style="font-size:18px;font-weight:bold;color:#1a6bb5">0</div>
+                  <div style="font-size:10px;color:#777">Toldos</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:6px">
+                <button class="auth-primary-btn" style="flex:1;font-size:11px;padding:5px" onclick="openAuthModal()">&#x1F464; El meu compte</button>
+                <button class="auth-logout-btn" style="flex:1;font-size:11px;padding:5px;margin:0" onclick="handleLogout()">Sortir</button>
+              </div>
             </div>
           </div>
         </div>
@@ -3896,7 +3920,7 @@ function showPopup(d, marker, terrassaIdx) {
       '<div class="popup-reviews-header">'+
         '<div class="popup-reviews-avg" id="reviews-avg-'+terrassaIdx+'">&#x2B50; Reviews</div>'+
         '<button class="popup-btn-review" id="review-open-btn-'+terrassaIdx+'" '+
-          'onclick="openReviewModal('+terrassaIdx+')" style="display:none">'+
+          'onclick="openReviewModal('+terrassaIdx+')">'+
           '&#x270F;&#xFE0F; Escriure review</button>'+
       '</div>'+
       '<div class="popup-reviews-list" id="reviews-list-'+terrassaIdx+'">'+
@@ -3934,10 +3958,6 @@ function showPopup(d, marker, terrassaIdx) {
 
   loadToldoCount(terrassaIdx, d);
   loadReviews(terrassaIdx, d);
-  if (window.currentUser) {
-    var rb = document.getElementById("review-open-btn-"+terrassaIdx);
-    if (rb) rb.style.display = "";
-  }
 
   trackEvent("click_terrassa", {
     nom: d.nom||d.adr, adr: d.adr, barri: d.barri,
@@ -4139,7 +4159,10 @@ function initControls() {
           <label class="auth-label">Contrasenya:</label>
           <input class="auth-input" type="password" id="auth-password" autocomplete="current-password">
           <button class="auth-primary-btn" id="auth-email-btn" onclick="handleLoginEmail()">Entrar</button>
-          <div class="auth-switch">No tens compte? <a onclick="switchToRegister()">Registra't</a></div>
+          <div class="auth-switch" style="display:flex;justify-content:space-between;align-items:center">
+            <span>No tens compte? <a onclick="switchToRegister()">Registra't</a></span>
+            <a onclick="handleForgotPassword()" style="font-size:11px;color:#888">Contrasenya oblidada?</a>
+          </div>
         </div>
         <div id="auth-register-form" style="display:none">
           <label class="auth-label">El teu nom:</label>
@@ -4335,6 +4358,57 @@ function initControls() {
       if (menuBtn) menuBtn.classList.remove('logged-in');
       if (fab) { fab.classList.remove('logged-in'); fab.innerHTML='&#x1F464;<img id="auth-fab-avatar" src="" style="display:none">'; }
     }
+    updateSidebarSession(user);
+  }
+
+  function updateSidebarSession(user) {
+    var out = document.getElementById('session-logged-out');
+    var inn = document.getElementById('session-logged-in');
+    if (!out || !inn) return;
+    if (user) {
+      out.style.display = 'none';
+      inn.style.display = 'block';
+      // Avatar
+      var av = document.getElementById('sidebar-avatar');
+      if (av) {
+        if (user.photoURL) {
+          av.innerHTML = '<img src="'+user.photoURL+'" style="width:100%;height:100%;object-fit:cover" alt="Avatar">';
+        } else {
+          av.textContent = (user.displayName||user.email||'?').charAt(0).toUpperCase();
+        }
+      }
+      var nm = document.getElementById('sidebar-name');
+      if (nm) nm.textContent = user.displayName || 'Usuari';
+      var em = document.getElementById('sidebar-email');
+      if (em) em.textContent = user.email || '';
+      // Stats
+      var sf = document.getElementById('sidebar-stat-favs');
+      var sr = document.getElementById('sidebar-stat-reviews');
+      var st = document.getElementById('sidebar-stat-toldos');
+      if (sf) sf.textContent = Object.keys(window.favorites||{}).length;
+      if (st) st.textContent = Object.keys(window.toldoReports||{}).length;
+      if (sr) sr.textContent = '—';
+    } else {
+      out.style.display = 'block';
+      inn.style.display = 'none';
+    }
+  }
+
+  function handleForgotPassword() {
+    var email = document.getElementById('auth-email').value.trim();
+    if (!email) {
+      showAuthError('Escriu el teu correu primer.');
+      return;
+    }
+    if (!window.firebaseAuth) { showAuthError('Firebase no disponible.'); return; }
+    import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js')
+      .then(function(m) { return m.sendPasswordResetEmail(window.firebaseAuth, email); })
+      .then(function() {
+        showAuthError('✅ T'hem enviat un correu per restablir la contrasenya.');
+      })
+      .catch(function(e) {
+        showAuthError(authErrorMsg(e.code));
+      });
   }
   </script>
 
