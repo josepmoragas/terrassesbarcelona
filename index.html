@@ -1420,33 +1420,26 @@ body {
     if (typeof onUserChanged === 'function') onUserChanged(user);
   });
 
-  // En app nativa usar signInWithRedirect (evita popup blocat per WebView)
-  // En web usar signInWithPopup (millor UX)
   var isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
 
-  window.loginGoogle = () => isNative
-    ? signInWithRedirect(auth, window.googleProvider)
-    : signInWithPopup(auth, window.googleProvider);
-
-  window.loginApple  = () => isNative
-    ? signInWithRedirect(auth, window.appleProvider)
-    : signInWithPopup(auth, window.appleProvider);
-
+  // Tant a web com a app nativa usem signInWithRedirect
+  // (signInWithPopup falla en WebViews i en alguns navegadors mòbils)
+  window.loginGoogle = () => signInWithRedirect(auth, window.googleProvider);
+  window.loginApple  = () => signInWithRedirect(auth, window.appleProvider);
   window.logoutUser  = () => signOut(auth);
 
-  // Recollir resultat del redirect quan l'app torna al primer pla (natiu)
-  if (isNative) {
-    getRedirectResult(auth).then(function(result) {
-      if (result && result.user) {
-        console.log('Login per redirect ok:', result.user.displayName);
-        // Tancar modal si estava obert
-        var ov = document.getElementById('auth-overlay');
-        if (ov) ov.classList.remove('open');
-      }
-    }).catch(function(e) {
-      console.warn('Redirect result error:', e.code);
-    });
-  }
+  // Recollir resultat del redirect en tornar a la pàgina (web + app)
+  getRedirectResult(auth).then(function(result) {
+    if (result && result.user) {
+      console.log('Login per redirect ok:', result.user.displayName);
+      var ov = document.getElementById('auth-overlay');
+      if (ov) { ov.classList.remove('open'); ov.style.display = 'none'; setTimeout(function(){ ov.style.display=''; }, 50); }
+    }
+  }).catch(function(e) {
+    if (e.code !== 'auth/no-auth-event') {
+      console.warn('Redirect result error:', e.code, e.message);
+    }
+  });
 
   console.log('Firebase inicialitzat');
 </script>
@@ -4320,10 +4313,9 @@ function initControls() {
           }
         });
     } else {
-      // Web: signInWithPopup normal
+      // Web: signInWithRedirect — la pàgina es recarregarà i getRedirectResult recollirà el resultat
       if (!window.loginGoogle) { showAuthError('Firebase no disponible.'); return; }
-      window.loginGoogle().then(function(){ closeAuthModal(); })
-        .catch(function(e){ showAuthError(authErrorMsg(e.code)); });
+      window.loginGoogle().catch(function(e){ showAuthError(authErrorMsg(e.code)); });
     }
   }
   function handleLoginApple() {
@@ -4354,8 +4346,7 @@ function initControls() {
         });
     } else {
       if (!window.loginApple) { showAuthError('Firebase no disponible.'); return; }
-      window.loginApple().then(function(){ closeAuthModal(); })
-        .catch(function(e){ showAuthError(authErrorMsg(e.code)); });
+      window.loginApple().catch(function(e){ showAuthError(authErrorMsg(e.code)); });
     }
   }
   function handleLoginEmail() {
