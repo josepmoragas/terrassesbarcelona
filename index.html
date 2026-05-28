@@ -1620,38 +1620,42 @@ body {
                   <div id="sidebar-email" style="font-size:10px;color:#777"></div>
                 </div>
               </div>
-              <div style="display:flex;gap:8px;margin-bottom:8px">
-                <div style="flex:1;text-align:center;background:#f0f4ff;border-radius:6px;padding:5px 2px">
-                  <div id="sidebar-stat-favs" style="font-size:18px;font-weight:bold;color:#1a6bb5">0</div>
-                  <div style="font-size:10px;color:#777">Favorits</div>
+              <!-- Stats compactes -->
+              <div style="display:flex;gap:6px;margin-bottom:10px">
+                <div style="flex:1;text-align:center;background:#e8f0fe;border:1px solid #c5d8f5;padding:5px 2px;border-radius:4px">
+                  <div id="sidebar-stat-favs" style="font-size:16px;font-weight:bold;color:#1a4a9a">0</div>
+                  <div style="font-size:9px;color:#555">&#x2665; Favorits</div>
                 </div>
-                <div style="flex:1;text-align:center;background:#f0f4ff;border-radius:6px;padding:5px 2px">
-                  <div id="sidebar-stat-reviews" style="font-size:18px;font-weight:bold;color:#1a6bb5">0</div>
-                  <div style="font-size:10px;color:#777">Reviews</div>
+                <div style="flex:1;text-align:center;background:#e8f0fe;border:1px solid #c5d8f5;padding:5px 2px;border-radius:4px">
+                  <div id="sidebar-stat-reviews" style="font-size:16px;font-weight:bold;color:#1a4a9a">0</div>
+                  <div style="font-size:9px;color:#555">&#x2B50; Reviews</div>
                 </div>
-                <div style="flex:1;text-align:center;background:#f0f4ff;border-radius:6px;padding:5px 2px">
-                  <div id="sidebar-stat-toldos" style="font-size:18px;font-weight:bold;color:#1a6bb5">0</div>
-                  <div style="font-size:10px;color:#777">Toldos</div>
+                <div style="flex:1;text-align:center;background:#e8f0fe;border:1px solid #c5d8f5;padding:5px 2px;border-radius:4px">
+                  <div id="sidebar-stat-toldos" style="font-size:16px;font-weight:bold;color:#1a4a9a">0</div>
+                  <div style="font-size:9px;color:#555">&#x26F1; Tendalls</div>
                 </div>
               </div>
-              <div style="display:flex;gap:6px">
-                <button class="auth-primary-btn" style="flex:1;font-size:11px;padding:5px" onclick="openAuthModal()">&#x1F464; El meu compte</button>
-                <button class="auth-logout-btn" style="flex:1;font-size:11px;padding:5px;margin:0" onclick="handleLogout()">Sortir</button>
+              <!-- Accessos ràpids -->
+              <div style="margin-bottom:8px;border:1px solid #dde;border-radius:4px;overflow:hidden">
+                <div style="background:#f5f7ff;padding:4px 8px;font-size:10px;font-weight:bold;color:#002060;border-bottom:1px solid #dde">Accessos ràpids</div>
+                <div onclick="showOnlyFavs();closeMenu('fav')" style="padding:5px 8px;font-size:11px;cursor:pointer;border-bottom:1px solid #eef;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''">
+                  <span style="color:#c0392b">&#x2665;</span> Veure els meus favorits
+                </div>
+                <div onclick="openAuthModal()" style="padding:5px 8px;font-size:11px;cursor:pointer;border-bottom:1px solid #eef;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''">
+                  <span style="color:#1a6bb5">&#x1F464;</span> El meu compte i configuració
+                </div>
+                <div onclick="handleLogout()" style="padding:5px 8px;font-size:11px;cursor:pointer;color:#a03030;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='#fff0f0'" onmouseout="this.style.background=''">
+                  <span>&#x1F6AA;</span> Tancar sessió
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="panel">
-          <div class="panel-header">&#x1F4CA; Estad&iacute;stiques</div>
-          <div class="panel-body">
-            <div id="stats-box">
-              <strong>Total terrasses:</strong> 6.899<br>
-              <span id="stat-sol">Amb sol: &mdash;</span><br>
-              <span id="stat-ombra">A l'ombra: &mdash;</span><br>
-<span id="stat-nit">Nit: &mdash;</span>
-            </div>
-          </div>
+        <!-- Stats ocults (usats pel JS) -->
+        <div style="display:none">
+          <span id="stat-sol"></span><span id="stat-ombra"></span><span id="stat-nit"></span>
+          <div id="stats-box"></div>
         </div>
 
         <div class="panel">
@@ -4168,7 +4172,7 @@ function initControls() {
           <button class="auth-primary-btn" id="auth-email-btn" onclick="handleLoginEmail()">Entrar</button>
           <div class="auth-switch" style="display:flex;justify-content:space-between;align-items:center">
             <span>No tens compte? <a onclick="switchToRegister()">Registra't</a></span>
-            <a onclick="handleForgotPassword()" style="font-size:11px;color:#888">Contrasenya oblidada?</a>
+            <a onclick="handleForgotPassword()" style="font-size:11px;color:#2154b8;cursor:pointer;text-decoration:underline">Contrasenya oblidada?</a>
           </div>
         </div>
         <div id="auth-register-form" style="display:none">
@@ -4455,7 +4459,7 @@ function initControls() {
           <button class="review-tag-btn" data-tag="te_menjar" onclick="toggleReviewTag(this)">🥗 Té menjar</button>
           <button class="review-tag-btn" data-tag="animada" onclick="toggleReviewTag(this)">👥 Animada</button>
         </div>
-        <!-- Comentari ocult temporalment — es mostren només tags -->
+        <textarea id="review-text" style="display:none"></textarea>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 8px;background:#f0f8f0;border:1px solid #b8d8c0;">
           <input type="checkbox" id="review-has-toldo" style="width:16px;height:16px;cursor:pointer;accent-color:#2e7d32">
           <label for="review-has-toldo" style="font-size:11px;cursor:pointer;color:#1a4a1e;font-weight:bold;">
