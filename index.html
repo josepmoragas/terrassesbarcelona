@@ -536,7 +536,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
 }
 
 
-/* FAB Ajustos — blau, més avall */
+/* FAB Contacte — blau */
 #mobile-fab {
   background: linear-gradient(135deg, #2154b8, #4a7fd4);
   bottom: 122px;
@@ -1343,6 +1343,63 @@ body {
 .welcome-skip-btn:hover { color: #000; }
 
 
+
+/* ══ MODAL CONTACTE ════════════════════════════════════════ */
+#contact-overlay {
+  display: none; position: fixed; inset: 0; z-index: 9850;
+  background: rgba(0,0,0,0.55);
+  align-items: center; justify-content: center; padding: 16px;
+}
+#contact-overlay.open { display: flex; }
+#contact-panel {
+  background: var(--xp-bg);
+  border: 2px solid #404040;
+  border-radius: 8px 8px 0 0;
+  width: 100%; max-width: 340px;
+  box-shadow: 4px 4px 12px rgba(0,0,0,.6);
+  font-family: var(--font); font-size: 11px;
+  animation: authSlideUp .2s ease;
+  overflow: hidden;
+}
+#contact-titlebar {
+  height: 28px;
+  background: linear-gradient(180deg,#4a7fd4,#2154b8 40%,#1a44a0 60%,#3264c8);
+  display: flex; align-items: center; padding: 0 4px; gap: 4px; user-select: none;
+}
+#contact-titlebar-text {
+  flex: 1; color: white; font-size: 12px; font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0,0,0,.6);
+}
+#contact-titlebar-close {
+  width: 21px; height: 21px;
+  background: linear-gradient(180deg,#e06030,#c04010 40%,#a03010 60%,#c84020);
+  border: 1px solid #802010; border-radius: 3px;
+  color: white; font-size: 12px; font-weight: bold; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font); padding: 0;
+}
+#contact-titlebar-close:hover { background: linear-gradient(180deg,#f07040,#d05020 40%,#b04020 60%,#d85030); }
+#contact-body { padding: 14px 16px 16px; }
+.contact-subtitle {
+  font-weight: bold; color: #002060; font-size: 11px;
+  margin-bottom: 12px; padding-bottom: 5px; border-bottom: 1px solid #a0a0a0;
+}
+.contact-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; margin-bottom: 8px;
+  background: white; border: 1px solid #c0c8d8;
+  cursor: pointer; text-decoration: none; color: #222;
+}
+.contact-item:hover { background: #dde8fa; border-color: #2154b8; }
+.contact-item:active { background: #c0ccde; }
+.contact-icon { font-size: 20px; flex-shrink: 0; }
+.contact-info strong { display: block; font-size: 11px; font-weight: bold; color: #002060; }
+.contact-info span { font-size: 10px; color: #666; }
+.contact-note {
+  font-size: 10px; color: #888; font-style: italic;
+  text-align: center; margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid #ddd;
+}
 </style>
 
 <!-- ===== FIREBASE SDK ===== -->
@@ -1448,6 +1505,7 @@ body {
 <div id="mobile-header">
   <span id="mobile-header-logo">☀️</span>
   <span id="mobile-header-title">Terrasses Barcelona</span>
+  <button id="mobile-header-contact" title="Contacte" onclick="openContact()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:white;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✉️</button>
   <button id="mobile-header-notif" title="Notificacions" onclick="openMobileMenu()">🔔</button>
 </div>
 <!-- Stats bar sota el header -->
@@ -1489,6 +1547,8 @@ body {
 
       <!-- AJUDA -->
       <span class="menu-item" onclick="openHelp()">&#x2753; Ajuda</span>
+      <!-- CONTACTE -->
+      <span class="menu-item" onclick="openContact()" title="Contacte">&#x2709;&#xFE0F; Contacte</span>
       <!-- COMPTE -->
       <span class="menu-item" id="menu-auth" onclick="openAuthModal()">
         &#x1F464; <span id="menu-auth-label">Entrar</span>
@@ -1681,9 +1741,9 @@ body {
     </div>
 
     <!-- FAB mòbil per obrir el panell d'ajustos -->
-    <!-- FAB Ajustos (ocult en mòbil) -->
-    <button id="mobile-fab" class="mobile-fab-btn" onclick="toggleSheet()" title="Ajustos" style="display:none">
-      &#x2699;&#xFE0F;
+    <!-- FAB Contacte -->
+    <button id="mobile-fab" class="mobile-fab-btn" onclick="openContact()" title="Contacte">
+      ✉️
     </button>
 
     <!-- FAB Geoloc -->
@@ -5036,6 +5096,46 @@ function initControls() {
       closeWelcome();
     }
   };
+  </script>
+
+  <!-- MODAL CONTACTE -->
+  <div id="contact-overlay" onclick="if(event.target===this)closeContact()">
+    <div id="contact-panel">
+      <div id="contact-titlebar">
+        <span style="font-size:14px">✉️</span>
+        <span id="contact-titlebar-text">Contacte — Terrasses Barcelona</span>
+        <button id="contact-titlebar-close" onclick="closeContact()">&#x2715;</button>
+      </div>
+      <div id="contact-body">
+        <div class="contact-subtitle">&#x1F4AC; Posa't en contacte</div>
+        <a class="contact-item" href="mailto:josepmoragasl@gmail.com">
+          <span class="contact-icon">📧</span>
+          <div class="contact-info">
+            <strong>Correu electrònic</strong>
+            <span>josepmoragasl@gmail.com</span>
+          </div>
+        </a>
+        <a class="contact-item" href="https://instagram.com/josep_moragas" target="_blank" rel="noopener">
+          <span class="contact-icon">📸</span>
+          <div class="contact-info">
+            <strong>Instagram</strong>
+            <span>@josep_moragas</span>
+          </div>
+        </a>
+        <div class="contact-note">Suggeriments, errors o col·laboracions són benvinguts!</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  function openContact() {
+    var ov = document.getElementById('contact-overlay');
+    if (ov) ov.classList.add('open');
+  }
+  function closeContact() {
+    var ov = document.getElementById('contact-overlay');
+    if (ov) { ov.classList.remove('open'); ov.style.display='none'; setTimeout(function(){ ov.style.display=''; }, 50); }
+  }
   </script>
 </body>
 </html>
