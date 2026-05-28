@@ -1605,21 +1605,22 @@ body {
         </div>
 
         <div class="panel" id="panel-user-session">
-          <div class="panel-header">&#x1F464; Sessi&oacute;</div>
-          <div class="panel-body">
-            <div id="session-logged-out">
+          <div class="panel-header" id="panel-session-header">&#x1F464; Sessi&oacute;</div>
+          <div class="panel-body" id="panel-session-body">
+            <!-- Contingut dinàmic via JS -->
+            <div id="session-logged-out" style="display:block">
               <div style="font-size:12px;color:#555;margin-bottom:8px">Entra per guardar favorits i escriure reviews.</div>
               <button class="auth-primary-btn" style="width:100%;font-size:12px;padding:7px" onclick="openAuthModal()">&#x1F464; Iniciar sessi&oacute;</button>
             </div>
             <div id="session-logged-in" style="display:none">
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-                <div id="sidebar-avatar" style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0;background:#1a6bb5;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:15px;color:#fff"></div>
-                <div style="overflow:hidden">
-                  <div id="sidebar-name" style="font-weight:bold;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
-                  <div id="sidebar-email" style="font-size:10px;color:#777;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+                <div id="sidebar-avatar" style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0;background:#ccc;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:15px;color:#fff"></div>
+                <div>
+                  <div id="sidebar-name" style="font-weight:bold;font-size:13px"></div>
+                  <div id="sidebar-email" style="font-size:10px;color:#777"></div>
                 </div>
               </div>
-              <div style="display:flex;gap:6px;margin-bottom:8px">
+              <div style="display:flex;gap:8px;margin-bottom:8px">
                 <div style="flex:1;text-align:center;background:#f0f4ff;border-radius:6px;padding:5px 2px">
                   <div id="sidebar-stat-favs" style="font-size:18px;font-weight:bold;color:#1a6bb5">0</div>
                   <div style="font-size:10px;color:#777">Favorits</div>
@@ -3496,11 +3497,18 @@ function updateMobileTimeDisplay() {
 // GOOGLE ANALYTICS TRACKING
 // ================================================================
 function trackEvent(eventName, params) {
-  if (typeof gtag === "undefined") return;
-  // Anonimitzar coordenades a 2 decimals (~1km de precisio)
+  params = params || {};
+  // Anonimitzar coordenades a 2 decimals (~1km de precisió)
   if (params.lat) params.lat = Math.round(params.lat * 100) / 100;
   if (params.lng) params.lng = Math.round(params.lng * 100) / 100;
-  gtag("event", eventName, params);
+  // Firebase Analytics (principal)
+  if (typeof window.fbLog === 'function') {
+    window.fbLog(eventName, params);
+  }
+  // gtag com a fallback si existeix
+  if (typeof gtag === 'function') {
+    gtag('event', eventName, params);
+  }
 }
 
 
@@ -4160,7 +4168,7 @@ function initControls() {
           <button class="auth-primary-btn" id="auth-email-btn" onclick="handleLoginEmail()">Entrar</button>
           <div class="auth-switch" style="display:flex;justify-content:space-between;align-items:center">
             <span>No tens compte? <a onclick="switchToRegister()">Registra't</a></span>
-            <a onclick="handleForgotPassword()" style="color:#888;font-size:10px">Contrasenya oblidada?</a>
+            <a onclick="handleForgotPassword()" style="font-size:11px;color:#888">Contrasenya oblidada?</a>
           </div>
         </div>
         <div id="auth-register-form" style="display:none">
@@ -4367,10 +4375,11 @@ function initControls() {
     if (user) {
       out.style.display = 'none';
       inn.style.display = 'block';
+      // Avatar
       var av = document.getElementById('sidebar-avatar');
       if (av) {
         if (user.photoURL) {
-          av.innerHTML = '<img src="'+user.photoURL+'" style="width:100%;height:100%;object-fit:cover" alt="">';
+          av.innerHTML = '<img src="'+user.photoURL+'" style="width:100%;height:100%;object-fit:cover" alt="Avatar">';
         } else {
           av.textContent = (user.displayName||user.email||'?').charAt(0).toUpperCase();
         }
@@ -4379,6 +4388,7 @@ function initControls() {
       if (nm) nm.textContent = user.displayName || 'Usuari';
       var em = document.getElementById('sidebar-email');
       if (em) em.textContent = user.email || '';
+      // Stats
       var sf = document.getElementById('sidebar-stat-favs');
       var sr = document.getElementById('sidebar-stat-reviews');
       var st = document.getElementById('sidebar-stat-toldos');
@@ -4392,14 +4402,16 @@ function initControls() {
   }
 
   function handleForgotPassword() {
-    var email = (document.getElementById('auth-email')||{}).value || '';
-    email = email.trim();
-    if (!email) { showAuthError('Escriu el teu correu primer.'); return; }
+    var email = document.getElementById('auth-email').value.trim();
+    if (!email) {
+      showAuthError('Escriu el teu correu primer.');
+      return;
+    }
     if (!window.firebaseAuth) { showAuthError('Firebase no disponible.'); return; }
     import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js')
       .then(function(m) { return m.sendPasswordResetEmail(window.firebaseAuth, email); })
       .then(function() {
-        showAuthError('Correu de recuperació enviat! Revisa la teva bústia.');
+        showAuthError('✅ T\'hem enviat un correu per restablir la contrasenya.');
       })
       .catch(function(e) {
         showAuthError(authErrorMsg(e.code));
