@@ -536,7 +536,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
 }
 
 
-/* FAB Contacte — blau */
+/* FAB Ajustos — blau, més avall */
 #mobile-fab {
   background: linear-gradient(135deg, #2154b8, #4a7fd4);
   bottom: 122px;
@@ -1344,61 +1344,10 @@ body {
 
 
 
-/* ══ MODAL CONTACTE ════════════════════════════════════════ */
-#contact-overlay {
-  display: none; position: fixed; inset: 0; z-index: 9850;
-  background: rgba(0,0,0,0.55);
-  align-items: center; justify-content: center; padding: 16px;
-}
-#contact-overlay.open { display: flex; }
-#contact-panel {
-  background: var(--xp-bg);
-  border: 2px solid #404040;
-  border-radius: 8px 8px 0 0;
-  width: 100%; max-width: 340px;
-  box-shadow: 4px 4px 12px rgba(0,0,0,.6);
-  font-family: var(--font); font-size: 11px;
-  animation: authSlideUp .2s ease;
-  overflow: hidden;
-}
-#contact-titlebar {
-  height: 28px;
-  background: linear-gradient(180deg,#4a7fd4,#2154b8 40%,#1a44a0 60%,#3264c8);
-  display: flex; align-items: center; padding: 0 4px; gap: 4px; user-select: none;
-}
-#contact-titlebar-text {
-  flex: 1; color: white; font-size: 12px; font-weight: bold;
-  text-shadow: 1px 1px 2px rgba(0,0,0,.6);
-}
-#contact-titlebar-close {
-  width: 21px; height: 21px;
-  background: linear-gradient(180deg,#e06030,#c04010 40%,#a03010 60%,#c84020);
-  border: 1px solid #802010; border-radius: 3px;
-  color: white; font-size: 12px; font-weight: bold; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--font); padding: 0;
-}
-#contact-titlebar-close:hover { background: linear-gradient(180deg,#f07040,#d05020 40%,#b04020 60%,#d85030); }
-#contact-body { padding: 14px 16px 16px; }
-.contact-subtitle {
-  font-weight: bold; color: #002060; font-size: 11px;
-  margin-bottom: 12px; padding-bottom: 5px; border-bottom: 1px solid #a0a0a0;
-}
-.contact-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px; margin-bottom: 8px;
-  background: white; border: 1px solid #c0c8d8;
-  cursor: pointer; text-decoration: none; color: #222;
-}
-.contact-item:hover { background: #dde8fa; border-color: #2154b8; }
-.contact-item:active { background: #c0ccde; }
-.contact-icon { font-size: 20px; flex-shrink: 0; }
-.contact-info strong { display: block; font-size: 11px; font-weight: bold; color: #002060; }
-.contact-info span { font-size: 10px; color: #666; }
-.contact-note {
-  font-size: 10px; color: #888; font-style: italic;
-  text-align: center; margin-top: 8px; padding-top: 8px;
-  border-top: 1px solid #ddd;
+/* Ombres d'edificis: mai interceptar events de ratolí/toc */
+.leaflet-shadow-pane path,
+.leaflet-overlay-pane path.shadow-polygon {
+  pointer-events: none !important;
 }
 </style>
 
@@ -1505,7 +1454,6 @@ body {
 <div id="mobile-header">
   <span id="mobile-header-logo">☀️</span>
   <span id="mobile-header-title">Terrasses Barcelona</span>
-  <button id="mobile-header-contact" title="Contacte" onclick="openContact()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:white;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✉️</button>
   <button id="mobile-header-notif" title="Notificacions" onclick="openMobileMenu()">🔔</button>
 </div>
 <!-- Stats bar sota el header -->
@@ -1547,8 +1495,6 @@ body {
 
       <!-- AJUDA -->
       <span class="menu-item" onclick="openHelp()">&#x2753; Ajuda</span>
-      <!-- CONTACTE -->
-      <span class="menu-item" onclick="openContact()" title="Contacte">&#x2709;&#xFE0F; Contacte</span>
       <!-- COMPTE -->
       <span class="menu-item" id="menu-auth" onclick="openAuthModal()">
         &#x1F464; <span id="menu-auth-label">Entrar</span>
@@ -1741,9 +1687,9 @@ body {
     </div>
 
     <!-- FAB mòbil per obrir el panell d'ajustos -->
-    <!-- FAB Contacte -->
-    <button id="mobile-fab" class="mobile-fab-btn" onclick="openContact()" title="Contacte">
-      ✉️
+    <!-- FAB Ajustos (ocult en mòbil) -->
+    <button id="mobile-fab" class="mobile-fab-btn" onclick="toggleSheet()" title="Ajustos" style="display:none">
+      &#x2699;&#xFE0F;
     </button>
 
     <!-- FAB Geoloc -->
@@ -2028,50 +1974,86 @@ function pointInPolygon(pt, poly) {
 // Check if a point is in the shadow of a building
 // sunAlt: radians (SunCalc .altitude)
 // sunAz:  radians (SunCalc .azimuth, S=0, W=+pi/2)
+// ── MÈTODE D'ARESTES DE SILUETA ─────────────────────────────────
+// Per cada aresta del polígon de l'edifici es calcula si mira cap al sol
+// o cap a l'ombra. Les arestes d'ombra es desplacen; les il·luminades
+// es mantenen. Als vèrtexs on canvia el signe s'afegeix la diagonal real.
+// Resultat: polígon d'ombra fidel a la geometria de l'edifici.
+function shadowPolygon(polygon, dLat, dLng) {
+  var n = polygon.length;
+  var result = [];
+
+  for (var i = 0; i < n; i++) {
+    var curr = polygon[i];
+    var next = polygon[(i + 1) % n];
+
+    // Normal de l'aresta (perpendicular, apuntant cap a fora)
+    // En coordenades lat/lng: aresta = (dLng, dLat), normal = (-dLat, dLng)
+    var edgeDLat = next.lat - curr.lat;
+    var edgeDLng = next.lng - curr.lng;
+    var normalLat = -edgeDLng;  // normal apunta cap a fora
+    var normalLng =  edgeDLat;
+
+    // Producte escalar: normal · direcció_ombra
+    // Si positiu → l'aresta mira cap a l'ombra (s'ha de desplaçar)
+    // Si negatiu → l'aresta mira cap al sol (es manté)
+    var dot = normalLat * dLat + normalLng * dLng;
+
+    // Vèrtex anterior
+    var prev = polygon[(i - 1 + n) % n];
+    var prevEdgeDLat = curr.lat - prev.lat;
+    var prevEdgeDLng = curr.lng - prev.lng;
+    var prevNormalLat = -prevEdgeDLng;
+    var prevNormalLng =  prevEdgeDLat;
+    var prevDot = prevNormalLat * dLat + prevNormalLng * dLng;
+
+    // Canvi de signe entre aresta anterior i actual → vèrtex de transició
+    if (prevDot >= 0 && dot < 0) {
+      // Transició ombra→sol: afegir punt desplaçat + punt original
+      result.push({ lat: curr.lat + dLat, lng: curr.lng + dLng });
+      result.push({ lat: curr.lat,        lng: curr.lng });
+    } else if (prevDot < 0 && dot >= 0) {
+      // Transició sol→ombra: afegir punt original + punt desplaçat
+      result.push({ lat: curr.lat,        lng: curr.lng });
+      result.push({ lat: curr.lat + dLat, lng: curr.lng + dLng });
+    } else if (dot >= 0) {
+      // Aresta d'ombra: vèrtex desplaçat
+      result.push({ lat: curr.lat + dLat, lng: curr.lng + dLng });
+    } else {
+      // Aresta il·luminada: vèrtex original
+      result.push({ lat: curr.lat, lng: curr.lng });
+    }
+  }
+  return result;
+}
+
 function isInBuildingShadow(pt, building, sunAlt, sunAz) {
   if (sunAlt <= 0.017) return false; // <1° → night/horizon
 
-  // NOTA: NO marquem ombra si el punt cau dins del polígon de l'edifici.
-  // Les coordenades del CSV de Barcelona apunten al centroide de la finca
-  // (dins l'edifici), però la terrassa és a la VORERA, fora de l'edifici.
-  // Marcar "dins edifici = ombra" causaria falsos positius per totes les
-  // terrasses amb coordenades al centroide de la finca.
-  if (pointInPolygon(pt, building.polygon)) return false; // excloure edifici host
+  // Excloure punt dins l'edifici host (coordenades al centroide de la finca)
+  if (pointInPolygon(pt, building.polygon)) return false;
 
-  // Shadow length in metres
+  // Longitud de l'ombra en metres
   var shadowLen = building.height / Math.tan(sunAlt);
-  if (shadowLen > 300) shadowLen = 300; // cap at dawn/dusk
+  if (shadowLen > 300) shadowLen = 300; // cap a alba/crepuscle
 
-  // SunCalc: azimuth 0=S, pi/2=W, -pi/2=E
-  // Shadow direction = OPPOSITE to sun → rotate 180°
-  var shadowAz = sunAz + Math.PI;
-  // Convert to dX (east metres), dY (north metres)
-  // SunCalc uses: az 0=S → sin(0)=0 east, cos(0)=-1 north... let's be explicit
-  // Standard: N=0°, E=90°. SunCalc: S=0, so offset +180° for N=0 standard
-  // SunCalc (0=S, sin=Est, cos=Nord) -> ombra oposada al sol:
-  // dxM = sin(sunAz) -> Est, dyM = cos(sunAz) -> Nord
-  var dxM =  Math.sin(sunAz) * shadowLen; // east (sin=Est en SunCalc)
-  var dyM =  Math.cos(sunAz) * shadowLen; // north (cos=Nord en SunCalc)
+  // SunCalc: 0=Sud, sin=Est, cos=Nord → ombra en direcció oposada al sol
+  var dxM =  Math.sin(sunAz) * shadowLen; // Est (metres)
+  var dyM =  Math.cos(sunAz) * shadowLen; // Nord (metres)
 
-  var avgLat = building.clat;
   var dLat = mToLat(dyM);
-  var dLng = mToLng(dxM, avgLat);
+  var dLng = mToLng(dxM, building.clat);
 
-  // Build shadow polygon (extruded footprint)
-  var shadowPoly = building.polygon.map(function(p) {
-    return { lat: p.lat + dLat, lng: p.lng + dLng };
-  });
+  // Polígon d'ombra amb mètode d'arestes de silueta
+  var sp = shadowPolygon(building.polygon, dLat, dLng);
+  if (sp.length >= 3 && pointInPolygon(pt, sp)) return true;
 
-  if (pointInPolygon(pt, shadowPoly)) return true;
-
-  // Swept hull: check intermediate steps to catch thin buildings
+  // Fallback: swept hull per edificis molt prims (6 passos)
   var steps = 6;
   for (var s = 1; s < steps; s++) {
     var t = s / steps;
-    var midPoly = building.polygon.map(function(p) {
-      return { lat: p.lat + dLat * t, lng: p.lng + dLng * t };
-    });
-    if (pointInPolygon(pt, midPoly)) return true;
+    var midPoly = shadowPolygon(building.polygon, dLat * t, dLng * t);
+    if (midPoly.length >= 3 && pointInPolygon(pt, midPoly)) return true;
   }
 
   return false;
@@ -2079,9 +2061,66 @@ function isInBuildingShadow(pt, building, sunAlt, sunAz) {
 
 // ── DRAW SHADOW POLYGONS ─────────────────────────────────────────
 function drawBuildingShadows() {
-  // Disabled for performance — no polygon rendering
+  // Netejar capes anteriors
   buildingPolygons.forEach(function(l) { map.removeLayer(l); });
   buildingPolygons = [];
+
+  // Només renderitzar ombres visuals si zoom >= 16 (rendiment)
+  if (!map || map.getZoom() < 16) return;
+  if (!BCN_BUILDINGS || !BCN_BUILDINGS.length) return;
+
+  var selDate = getSelectedDate();
+  var mins = getSelectedMinutes();
+  var hour = Math.floor(mins / 60);
+  var minute = mins % 60;
+  var date = new Date(selDate.getFullYear(), selDate.getMonth(),
+                      selDate.getDate(), hour, minute, 0);
+  var sun = SunCalc.getPosition(date, 41.3888, 2.159);
+  if (sun.altitude <= 0.017) return; // nit
+
+  // BCN_BUILDINGS format: [clat, clng, height, [[lat,lng]...]]
+  var bounds = map.getBounds();
+  var s = bounds.getSouth() - 0.003;
+  var n = bounds.getNorth() + 0.003;
+  var w = bounds.getWest()  - 0.003;
+  var e = bounds.getEast()  + 0.003;
+
+  for (var i = 0; i < BCN_BUILDINGS.length; i++) {
+    var b = BCN_BUILDINGS[i];
+    var clat = b[0], clng = b[1], height = b[2], rawPoly = b[3];
+    // Filtre viewport
+    if (clat < s || clat > n || clng < w || clng > e) continue;
+    if (!rawPoly || rawPoly.length < 3) continue;
+
+    // Convertir al format intern {lat, lng}
+    var polygon = rawPoly.map(function(p) { return { lat: p[0], lng: p[1] }; });
+
+    var shadowLen = height / Math.tan(sun.altitude);
+    if (shadowLen > 300) shadowLen = 300;
+    var dxM = Math.sin(sun.azimuth) * shadowLen;
+    var dyM = Math.cos(sun.azimuth) * shadowLen;
+    var dLat = mToLat(dyM);
+    var dLng = mToLng(dxM, clat);
+
+    // Polígon d'ombra amb mètode d'arestes de silueta
+    var sp = shadowPolygon(polygon, dLat, dLng);
+    if (!sp || sp.length < 3) continue;
+
+    // Convertir a format Leaflet [[lat,lng], ...]
+    var latlngs = sp.map(function(p) { return [p.lat, p.lng]; });
+
+    try {
+      var poly = L.polygon(latlngs, {
+        fillColor: '#1a1a3a',
+        fillOpacity: 0.28,
+        color: '#1a1a3a',
+        weight: 0,
+        interactive: false,
+        pane: 'shadowPane'
+      }).addTo(map);
+      buildingPolygons.push(poly);
+    } catch(e) { /* ignorar polígons invàlids */ }
+  }
 }
 
 // ── HELPERS D'HORA ────────────────────────────────────────────────
@@ -2340,6 +2379,8 @@ function recolorPointsAsync(buildings, coveredVenuesLocal, sun) {
       lastColors = colorFingerprint();
       restoreButton();
       updateMobileStatsBar(nSol, nOmbraEdifici, nNit);
+      // Dibuixar ombres visuals si zoom >= 16
+      drawBuildingShadows();
       // No obrir sheet en mòbil — l'usuari el gestiona manualment
       setTimeout(function() { if (progBar) progBar.style.width = "0%"; }, 1500);
     }
@@ -3702,6 +3743,10 @@ function initMap() {
     // Preferir Canvas renderer (molt més ràpid per milers de punts)
     preferCanvas: true
   });
+  // Crear pane d'ombres PER SOTA dels marcadors (zIndex 200 < 400 marcadors)
+  map.createPane('shadowPane');
+  map.getPane('shadowPane').style.zIndex = 200;
+  map.getPane('shadowPane').style.pointerEvents = 'none';
   L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", {
     attribution:"&copy; CartoDB &copy; OSM", maxZoom:19, subdomains:"abcd"
   }).addTo(map);
@@ -3717,8 +3762,15 @@ function initMap() {
   layerGroup = L.layerGroup().addTo(map);
 
   // Shadow engine viewport listeners
-  map.on("moveend", onViewportChange);
-  map.on("zoomend", function() { onViewportChange(); updateRadiusForZoom(); });
+  map.on("moveend", function() {
+    onViewportChange();
+    if (map.getZoom() >= 16) drawBuildingShadows();
+  });
+  map.on("zoomend", function() {
+    onViewportChange();
+    updateRadiusForZoom();
+    drawBuildingShadows(); // actualitzar ombres visuals en canviar zoom
+  });
   map.on("click", function() { hideResults(); restoreHighlights(); });
 
   allData.forEach(function(d, i) {
@@ -5096,46 +5148,6 @@ function initControls() {
       closeWelcome();
     }
   };
-  </script>
-
-  <!-- MODAL CONTACTE -->
-  <div id="contact-overlay" onclick="if(event.target===this)closeContact()">
-    <div id="contact-panel">
-      <div id="contact-titlebar">
-        <span style="font-size:14px">✉️</span>
-        <span id="contact-titlebar-text">Contacte — Terrasses Barcelona</span>
-        <button id="contact-titlebar-close" onclick="closeContact()">&#x2715;</button>
-      </div>
-      <div id="contact-body">
-        <div class="contact-subtitle">&#x1F4AC; Posa't en contacte</div>
-        <a class="contact-item" href="mailto:josepmoragasl@gmail.com">
-          <span class="contact-icon">📧</span>
-          <div class="contact-info">
-            <strong>Correu electrònic</strong>
-            <span>josepmoragasl@gmail.com</span>
-          </div>
-        </a>
-        <a class="contact-item" href="https://instagram.com/josep_moragas" target="_blank" rel="noopener">
-          <span class="contact-icon">📸</span>
-          <div class="contact-info">
-            <strong>Instagram</strong>
-            <span>@josep_moragas</span>
-          </div>
-        </a>
-        <div class="contact-note">Suggeriments, errors o col·laboracions són benvinguts!</div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-  function openContact() {
-    var ov = document.getElementById('contact-overlay');
-    if (ov) ov.classList.add('open');
-  }
-  function closeContact() {
-    var ov = document.getElementById('contact-overlay');
-    if (ov) { ov.classList.remove('open'); ov.style.display='none'; setTimeout(function(){ ov.style.display=''; }, 50); }
-  }
   </script>
 </body>
 </html>
