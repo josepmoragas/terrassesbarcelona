@@ -1,43 +1,36 @@
 <!DOCTYPE html>
 <html lang="ca">
 <head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-KMSR41H6HG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-KMSR41H6HG');
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Terrasses BCN">
 <meta name="theme-color" content="#1a6bb5">
-
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-KMSR41H6HG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag("js", new Date());
+  gtag("config", "G-KMSR41H6HG", {
+    anonymize_ip: true,
+    cookie_flags: "SameSite=None;Secure"
+  });
+</script>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☀️</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☀️</text></svg>">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Terrasses Barcelona — Sol i Ombra</title>
-
-<!-- SEO -->
-<meta name="description" content="Mapa interactiu de les 6.899 terrasses amb llicència de Barcelona. Descobreix quines terrasses tenen sol o ombra en temps real. Terrasses Barcelona, terrazas Barcelona, sol terrasses.">
-<meta name="keywords" content="terrasses barcelona, terrazas barcelona, sol terrasses barcelona, terrasses sol ombra, on pendre el sol barcelona, terrasses amb sol, mapa terrasses bcn">
-<meta name="author" content="Josep Moragas">
-<meta name="robots" content="index, follow">
-<link rel="canonical" href="https://terrasses.cat">
-
-<!-- Open Graph (WhatsApp, Facebook, LinkedIn) -->
-<meta property="og:type" content="website">
-<meta property="og:title" content="Terrasses Barcelona — Sol i Ombra">
-<meta property="og:description" content="Descobreix quines terrasses de Barcelona tindran sol o ombra a qualsevol hora del dia. 6.899 terrasses amb llicència municipal.">
-<meta property="og:url" content="https://terrasses.cat">
-<meta property="og:image" content="https://terrasses.cat/preview.png">
-<meta property="og:locale" content="ca_ES">
-<meta property="og:locale:alternate" content="es_ES">
-<meta property="og:site_name" content="Terrasses Barcelona">
-
-<!-- Twitter/X Card -->
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Terrasses Barcelona — Sol i Ombra">
-<meta name="twitter:description" content="Quines terrasses de Barcelona tenen sol ara? Consulta-ho en temps real.">
-<meta name="twitter:image" content="https://terrasses.cat/preview.png">
-
-<!-- Favicon PNG (GitHub) -->
-<link rel="icon" type="image/png" href="favicon.png" sizes="64x64">
-<link rel="apple-touch-icon" href="favicon.png">
-
+<title>Terrasses Barcelona &#x2600; &mdash; Sol i Ombra</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
@@ -563,10 +556,29 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
 }
 
 
-/* FAB Ajustos — blau, més avall */
+/* FAB Top5 — vermell parpellejant */
 #mobile-fab {
-  background: linear-gradient(135deg, #2154b8, #4a7fd4);
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
   bottom: 122px;
+  right: 16px;
+  position: fixed;
+  overflow: visible;
+}
+#mobile-fab.top5-updated {
+  animation: top5Pulse 1.5s ease-in-out infinite;
+}
+@keyframes top5Pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.7), 0 4px 12px rgba(0,0,0,0.3); }
+  50% { box-shadow: 0 0 0 10px rgba(231,76,60,0), 0 4px 12px rgba(0,0,0,0.3); }
+}
+#top5-fab-badge {
+  position: absolute;
+  top: -3px; right: -3px;
+  width: 13px; height: 13px;
+  background: #ff1744;
+  border: 2px solid white;
+  border-radius: 50%;
+  display: none;
 }
 /* FAB Favorits — vermell/rosa, sobre el d'ajustos */
 #mobile-fab-fav {
@@ -1371,11 +1383,57 @@ body {
 
 
 
-/* Ombres d'edificis: mai interceptar events de ratolí/toc */
-.leaflet-shadow-pane path,
-.leaflet-overlay-pane path.shadow-polygon {
-  pointer-events: none !important;
+/* ══ TOP5 SHEET ═══════════════════════════════════════════ */
+#top5-sheet {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 8600;
+  background: white;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.25);
+  max-height: 70vh;
+  overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform .3s cubic-bezier(0.32,0.72,0,1);
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
+#top5-sheet.open { display: block; transform: translateY(0); }
+#top5-sheet-handle {
+  display: flex; align-items: center;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid #eee;
+  position: sticky; top: 0; background: white;
+  border-radius: 20px 20px 0 0;
+  gap: 8px;
+}
+#top5-sheet-drag { width: 40px; height: 5px; background: #ddd; border-radius: 3px; }
+#top5-sheet-title {
+  flex: 1; font-family: var(--font); font-weight: bold;
+  font-size: 13px; color: #c0392b;
+}
+#top5-close-btn {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: #fdecea; border: none; color: #c0392b;
+  font-size: 14px; cursor: pointer;
+}
+#top5-sheet-content { padding: 4px 0 8px; }
+.top5s-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #f5f5f5;
+  cursor: pointer;
+}
+.top5s-item:last-child { border-bottom: none; }
+.top5s-item:active { background: #f0f4ff; }
+.top5s-rank { font-size: 26px; min-width: 34px; text-align: center; flex-shrink: 0; }
+.top5s-info { flex: 1; min-width: 0; }
+.top5s-nom { font-family: var(--font); font-weight: bold; font-size: 13px; color: #002060; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top5s-barri { font-size: 11px; color: #888; margin-top: 2px; }
+.top5s-clicks { font-family: var(--font); font-size: 12px; font-weight: bold; color: #c0392b; white-space: nowrap; }
+.top5s-loading { padding: 20px; text-align: center; font-size: 12px; color: #aaa; font-style: italic; }
+#top5-sheet-bg { display: none; position: fixed; inset: 0; z-index: 8599; background: rgba(0,0,0,0.3); }
+#top5-sheet-bg.open { display: block; }
 </style>
 
 <!-- ===== FIREBASE SDK ===== -->
@@ -1384,7 +1442,7 @@ body {
   import { getFirestore, doc, getDoc, setDoc, updateDoc, increment,
            collection, addDoc, serverTimestamp, onSnapshot }
     from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-  import { getAuth, signInWithRedirect, getRedirectResult,
+  import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult,
            GoogleAuthProvider, OAuthProvider, signOut, onAuthStateChanged }
     from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
   import { getAnalytics, logEvent }
@@ -1394,7 +1452,7 @@ body {
   // Els trobaràs a: Firebase Console > Configuració > Les teves apps > Web
   const firebaseConfig = {
     apiKey:            "AIzaSyBfTgX7-M_PCNSQXuX7VWEihIGDj-WWihs",
-    authDomain:        "terrasses-ea468.firebaseapp.com",
+    authDomain:        "terrasses.cat",
     projectId:         "terrasses-ea468",
     storageBucket:     "terrasses-ea468.firebasestorage.app",
     messagingSenderId: "552671690419",
@@ -1435,48 +1493,35 @@ body {
     if (typeof onUserChanged === 'function') onUserChanged(user);
   });
 
-  // Capturar resultat de redirect (Google/Apple redirigeix de tornada aquí)
-  getRedirectResult(auth).then((result) => {
-    if (result && result.user) {
-      window.currentUser = result.user;
-      if (typeof onUserChanged === 'function') onUserChanged(result.user);
-      if (typeof closeAuthModal === 'function') closeAuthModal();
-    }
-  }).catch((e) => {
-    console.error('Redirect auth error:', e.code, e.message);
-    if (typeof showAuthError === 'function' && e.code !== 'auth/no-current-user') {
-      showAuthError(e.code === 'auth/popup-closed-by-user'
-        ? 'Has cancel·lat l\'inici de sessió.'
-        : 'Error en el login: ' + e.code);
-    }
-  });
+  var isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
 
-  // Login Apple segueix amb redirect
+  // Tant a web com a app nativa usem signInWithRedirect
+  // (signInWithPopup falla en WebViews i en alguns navegadors mòbils)
+  window.loginGoogle = () => signInWithRedirect(auth, window.googleProvider);
   window.loginApple  = () => signInWithRedirect(auth, window.appleProvider);
   window.logoutUser  = () => signOut(auth);
 
-  // Login Google via Google Identity Services (credential, funciona a tots els navegadors)
-  window.handleGoogleCredential = function(response) {
-    const credential = GoogleAuthProvider.credential(response.credential);
-    import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js')
-      .then(({ signInWithCredential }) => signInWithCredential(auth, credential))
-      .then((result) => {
-        window.currentUser = result.user;
-        if (typeof onUserChanged === 'function') onUserChanged(result.user);
-        if (typeof closeAuthModal === 'function') closeAuthModal();
-      })
-      .catch((e) => {
-        console.error('Google credential error:', e);
-        if (typeof showAuthError === 'function') showAuthError('Error en el login: ' + e.code);
-      });
-  };
+  // Recollir resultat del redirect en tornar a la pàgina (web + app)
+  getRedirectResult(auth).then(function(result) {
+    if (result && result.user) {
+      console.log('Login per redirect ok:', result.user.displayName);
+      var ov = document.getElementById('auth-overlay');
+      if (ov) { ov.classList.remove('open'); ov.style.display = 'none'; setTimeout(function(){ ov.style.display=''; }, 50); }
+    }
+  }).catch(function(e) {
+    if (e.code !== 'auth/no-auth-event') {
+      console.warn('Redirect result error:', e.code, e.message);
+    }
+  });
 
   console.log('Firebase inicialitzat');
 </script>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
-<!-- Versió web -->
+<!-- Capacitor bridge stub (no fa res a la web) -->
+<script>
+  window.Capacitor = window.Capacitor || { isNativePlatform: function() { return false; } };
+</script>
 <!-- Header mòbil -->
 <div id="mobile-header">
   <span id="mobile-header-logo">☀️</span>
@@ -1493,7 +1538,17 @@ body {
 <script>
   // El plugin es carrega automàticament per Capacitor quan estem en app nativa
   // Aquí creem un stub per quan estem a la web
-
+  document.addEventListener('DOMContentLoaded', function() {
+    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+      // En app nativa, el plugin és accessible via Capacitor Plugins
+      if (window.Capacitor.Plugins && window.Capacitor.Plugins.FirebaseAuthentication) {
+        window.CapacitorFirebaseAuthentication = window.Capacitor.Plugins.FirebaseAuthentication;
+        console.log('Plugin FirebaseAuthentication natiu carregat');
+      } else {
+        console.warn('Plugin FirebaseAuthentication no trobat — fes npx cap sync');
+      }
+    }
+  });
 </script>
 <div id="desktop">
   <div id="main-window">
@@ -1637,58 +1692,30 @@ body {
           </div>
         </div>
 
-        <div class="panel" id="panel-user-session">
-          <div class="panel-header" id="panel-session-header">&#x1F464; Sessi&oacute;</div>
-          <div class="panel-body" id="panel-session-body">
-            <!-- Contingut dinàmic via JS -->
-            <div id="session-logged-out" style="display:block">
-              <div style="font-size:12px;color:#555;margin-bottom:8px">Entra per guardar favorits i escriure reviews.</div>
-              <button class="auth-primary-btn" style="width:100%;font-size:12px;padding:7px" onclick="openAuthModal()">&#x1F464; Iniciar sessi&oacute;</button>
-            </div>
-            <div id="session-logged-in" style="display:none">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-                <div id="sidebar-avatar" style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0;background:#ccc;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:15px;color:#fff"></div>
-                <div>
-                  <div id="sidebar-name" style="font-weight:bold;font-size:13px"></div>
-                  <div id="sidebar-email" style="font-size:10px;color:#777"></div>
-                </div>
-              </div>
-              <!-- Stats compactes -->
-              <div style="display:flex;gap:6px;margin-bottom:10px">
-                <div style="flex:1;text-align:center;background:#e8f0fe;border:1px solid #c5d8f5;padding:5px 2px;border-radius:4px">
-                  <div id="sidebar-stat-favs" style="font-size:16px;font-weight:bold;color:#1a4a9a">0</div>
-                  <div style="font-size:9px;color:#555">&#x2665; Favorits</div>
-                </div>
-                <div style="flex:1;text-align:center;background:#e8f0fe;border:1px solid #c5d8f5;padding:5px 2px;border-radius:4px">
-                  <div id="sidebar-stat-reviews" style="font-size:16px;font-weight:bold;color:#1a4a9a">0</div>
-                  <div style="font-size:9px;color:#555">&#x2B50; Reviews</div>
-                </div>
-                <div style="flex:1;text-align:center;background:#e8f0fe;border:1px solid #c5d8f5;padding:5px 2px;border-radius:4px">
-                  <div id="sidebar-stat-toldos" style="font-size:16px;font-weight:bold;color:#1a4a9a">0</div>
-                  <div style="font-size:9px;color:#555">&#x26F1; Tendalls</div>
-                </div>
-              </div>
-              <!-- Accessos ràpids -->
-              <div style="margin-bottom:8px;border:1px solid #dde;border-radius:4px;overflow:hidden">
-                <div style="background:#f5f7ff;padding:4px 8px;font-size:10px;font-weight:bold;color:#002060;border-bottom:1px solid #dde">Accessos ràpids</div>
-                <div onclick="showOnlyFavs();closeMenu('fav')" style="padding:5px 8px;font-size:11px;cursor:pointer;border-bottom:1px solid #eef;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''">
-                  <span style="color:#c0392b">&#x2665;</span> Veure els meus favorits
-                </div>
-                <div onclick="openAuthModal()" style="padding:5px 8px;font-size:11px;cursor:pointer;border-bottom:1px solid #eef;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''">
-                  <span style="color:#1a6bb5">&#x1F464;</span> El meu compte i configuració
-                </div>
-                <div onclick="handleLogout()" style="padding:5px 8px;font-size:11px;cursor:pointer;color:#a03030;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='#fff0f0'" onmouseout="this.style.background=''">
-                  <span>&#x1F6AA;</span> Tancar sessió
-                </div>
-              </div>
+        <div class="panel">
+          <div class="panel-header">&#x1F5FA; Llegenda</div>
+          <div class="panel-body">
+            <div class="legend-item"><div class="legend-dot" style="background:#ffcc00;border-color:#cc9900"></div><span><b>Sol directe</b></span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ff8c00;border-color:#cc6600"></div><span><b>Sol parcial</b></span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#22aa44;border-color:#116622"></div><span><b>Ombra edifici</b></span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#aaaaaa;border-color:#777777"></div><span><b>Pendent</b></span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#222244;border-color:#000020"></div><span><b>Nit</b></span></div>
+            <div style="font-size:10px;color:#888;margin-top:5px">
+              ⚠ <i>No inclou ombres de balcons ni vegetació. Estimació.</i>
             </div>
           </div>
         </div>
 
-        <!-- Stats ocults (usats pel JS) -->
-        <div style="display:none">
-          <span id="stat-sol"></span><span id="stat-ombra"></span><span id="stat-nit"></span>
-          <div id="stats-box"></div>
+        <div class="panel">
+          <div class="panel-header">&#x1F4CA; Estad&iacute;stiques</div>
+          <div class="panel-body">
+            <div id="stats-box">
+              <strong>Total terrasses:</strong> 6.899<br>
+              <span id="stat-sol">Amb sol: &mdash;</span><br>
+              <span id="stat-ombra">A l'ombra: &mdash;</span><br>
+<span id="stat-nit">Nit: &mdash;</span>
+            </div>
+          </div>
         </div>
 
         <div class="panel">
@@ -1714,9 +1741,10 @@ body {
     </div>
 
     <!-- FAB mòbil per obrir el panell d'ajustos -->
-    <!-- FAB Ajustos (ocult en mòbil) -->
-    <button id="mobile-fab" class="mobile-fab-btn" onclick="toggleSheet()" title="Ajustos" style="display:none">
-      &#x2699;&#xFE0F;
+    <!-- FAB Top5 -->
+    <button id="mobile-fab" class="mobile-fab-btn top5-updated" onclick="openTop5Sheet()" title="Top 5">
+      🏆
+      <div id="top5-fab-badge"></div>
     </button>
 
     <!-- FAB Geoloc -->
@@ -2001,86 +2029,50 @@ function pointInPolygon(pt, poly) {
 // Check if a point is in the shadow of a building
 // sunAlt: radians (SunCalc .altitude)
 // sunAz:  radians (SunCalc .azimuth, S=0, W=+pi/2)
-// ── MÈTODE D'ARESTES DE SILUETA ─────────────────────────────────
-// Per cada aresta del polígon de l'edifici es calcula si mira cap al sol
-// o cap a l'ombra. Les arestes d'ombra es desplacen; les il·luminades
-// es mantenen. Als vèrtexs on canvia el signe s'afegeix la diagonal real.
-// Resultat: polígon d'ombra fidel a la geometria de l'edifici.
-function shadowPolygon(polygon, dLat, dLng) {
-  var n = polygon.length;
-  var result = [];
-
-  for (var i = 0; i < n; i++) {
-    var curr = polygon[i];
-    var next = polygon[(i + 1) % n];
-
-    // Normal de l'aresta (perpendicular, apuntant cap a fora)
-    // En coordenades lat/lng: aresta = (dLng, dLat), normal = (-dLat, dLng)
-    var edgeDLat = next.lat - curr.lat;
-    var edgeDLng = next.lng - curr.lng;
-    var normalLat = -edgeDLng;  // normal apunta cap a fora
-    var normalLng =  edgeDLat;
-
-    // Producte escalar: normal · direcció_ombra
-    // Si positiu → l'aresta mira cap a l'ombra (s'ha de desplaçar)
-    // Si negatiu → l'aresta mira cap al sol (es manté)
-    var dot = normalLat * dLat + normalLng * dLng;
-
-    // Vèrtex anterior
-    var prev = polygon[(i - 1 + n) % n];
-    var prevEdgeDLat = curr.lat - prev.lat;
-    var prevEdgeDLng = curr.lng - prev.lng;
-    var prevNormalLat = -prevEdgeDLng;
-    var prevNormalLng =  prevEdgeDLat;
-    var prevDot = prevNormalLat * dLat + prevNormalLng * dLng;
-
-    // Canvi de signe entre aresta anterior i actual → vèrtex de transició
-    if (prevDot >= 0 && dot < 0) {
-      // Transició ombra→sol: afegir punt desplaçat + punt original
-      result.push({ lat: curr.lat + dLat, lng: curr.lng + dLng });
-      result.push({ lat: curr.lat,        lng: curr.lng });
-    } else if (prevDot < 0 && dot >= 0) {
-      // Transició sol→ombra: afegir punt original + punt desplaçat
-      result.push({ lat: curr.lat,        lng: curr.lng });
-      result.push({ lat: curr.lat + dLat, lng: curr.lng + dLng });
-    } else if (dot >= 0) {
-      // Aresta d'ombra: vèrtex desplaçat
-      result.push({ lat: curr.lat + dLat, lng: curr.lng + dLng });
-    } else {
-      // Aresta il·luminada: vèrtex original
-      result.push({ lat: curr.lat, lng: curr.lng });
-    }
-  }
-  return result;
-}
-
 function isInBuildingShadow(pt, building, sunAlt, sunAz) {
   if (sunAlt <= 0.017) return false; // <1° → night/horizon
 
-  // Excloure punt dins l'edifici host (coordenades al centroide de la finca)
-  if (pointInPolygon(pt, building.polygon)) return false;
+  // NOTA: NO marquem ombra si el punt cau dins del polígon de l'edifici.
+  // Les coordenades del CSV de Barcelona apunten al centroide de la finca
+  // (dins l'edifici), però la terrassa és a la VORERA, fora de l'edifici.
+  // Marcar "dins edifici = ombra" causaria falsos positius per totes les
+  // terrasses amb coordenades al centroide de la finca.
+  if (pointInPolygon(pt, building.polygon)) return false; // excloure edifici host
 
-  // Longitud de l'ombra en metres
+  // Shadow length in metres
   var shadowLen = building.height / Math.tan(sunAlt);
-  if (shadowLen > 300) shadowLen = 300; // cap a alba/crepuscle
+  if (shadowLen > 300) shadowLen = 300; // cap at dawn/dusk
 
-  // SunCalc: 0=Sud, sin=Est, cos=Nord → ombra en direcció oposada al sol
-  var dxM =  Math.sin(sunAz) * shadowLen; // Est (metres)
-  var dyM =  Math.cos(sunAz) * shadowLen; // Nord (metres)
+  // SunCalc: azimuth 0=S, pi/2=W, -pi/2=E
+  // Shadow direction = OPPOSITE to sun → rotate 180°
+  var shadowAz = sunAz + Math.PI;
+  // Convert to dX (east metres), dY (north metres)
+  // SunCalc uses: az 0=S → sin(0)=0 east, cos(0)=-1 north... let's be explicit
+  // Standard: N=0°, E=90°. SunCalc: S=0, so offset +180° for N=0 standard
+  // SunCalc (0=S, sin=Est, cos=Nord) -> ombra oposada al sol:
+  // dxM = sin(sunAz) -> Est, dyM = cos(sunAz) -> Nord
+  var dxM =  Math.sin(sunAz) * shadowLen; // east (sin=Est en SunCalc)
+  var dyM =  Math.cos(sunAz) * shadowLen; // north (cos=Nord en SunCalc)
 
+  var avgLat = building.clat;
   var dLat = mToLat(dyM);
-  var dLng = mToLng(dxM, building.clat);
+  var dLng = mToLng(dxM, avgLat);
 
-  // Polígon d'ombra amb mètode d'arestes de silueta
-  var sp = shadowPolygon(building.polygon, dLat, dLng);
-  if (sp.length >= 3 && pointInPolygon(pt, sp)) return true;
+  // Build shadow polygon (extruded footprint)
+  var shadowPoly = building.polygon.map(function(p) {
+    return { lat: p.lat + dLat, lng: p.lng + dLng };
+  });
 
-  // Fallback: swept hull per edificis molt prims (6 passos)
+  if (pointInPolygon(pt, shadowPoly)) return true;
+
+  // Swept hull: check intermediate steps to catch thin buildings
   var steps = 6;
   for (var s = 1; s < steps; s++) {
     var t = s / steps;
-    var midPoly = shadowPolygon(building.polygon, dLat * t, dLng * t);
-    if (midPoly.length >= 3 && pointInPolygon(pt, midPoly)) return true;
+    var midPoly = building.polygon.map(function(p) {
+      return { lat: p.lat + dLat * t, lng: p.lng + dLng * t };
+    });
+    if (pointInPolygon(pt, midPoly)) return true;
   }
 
   return false;
@@ -2088,66 +2080,9 @@ function isInBuildingShadow(pt, building, sunAlt, sunAz) {
 
 // ── DRAW SHADOW POLYGONS ─────────────────────────────────────────
 function drawBuildingShadows() {
-  // Netejar capes anteriors
+  // Disabled for performance — no polygon rendering
   buildingPolygons.forEach(function(l) { map.removeLayer(l); });
   buildingPolygons = [];
-
-  // Només renderitzar ombres visuals si zoom >= 16 (rendiment)
-  if (!map || map.getZoom() < 16) return;
-  if (!BCN_BUILDINGS || !BCN_BUILDINGS.length) return;
-
-  var selDate = getSelectedDate();
-  var mins = getSelectedMinutes();
-  var hour = Math.floor(mins / 60);
-  var minute = mins % 60;
-  var date = new Date(selDate.getFullYear(), selDate.getMonth(),
-                      selDate.getDate(), hour, minute, 0);
-  var sun = SunCalc.getPosition(date, 41.3888, 2.159);
-  if (sun.altitude <= 0.017) return; // nit
-
-  // BCN_BUILDINGS format: [clat, clng, height, [[lat,lng]...]]
-  var bounds = map.getBounds();
-  var s = bounds.getSouth() - 0.003;
-  var n = bounds.getNorth() + 0.003;
-  var w = bounds.getWest()  - 0.003;
-  var e = bounds.getEast()  + 0.003;
-
-  for (var i = 0; i < BCN_BUILDINGS.length; i++) {
-    var b = BCN_BUILDINGS[i];
-    var clat = b[0], clng = b[1], height = b[2], rawPoly = b[3];
-    // Filtre viewport
-    if (clat < s || clat > n || clng < w || clng > e) continue;
-    if (!rawPoly || rawPoly.length < 3) continue;
-
-    // Convertir al format intern {lat, lng}
-    var polygon = rawPoly.map(function(p) { return { lat: p[0], lng: p[1] }; });
-
-    var shadowLen = height / Math.tan(sun.altitude);
-    if (shadowLen > 300) shadowLen = 300;
-    var dxM = Math.sin(sun.azimuth) * shadowLen;
-    var dyM = Math.cos(sun.azimuth) * shadowLen;
-    var dLat = mToLat(dyM);
-    var dLng = mToLng(dxM, clat);
-
-    // Polígon d'ombra amb mètode d'arestes de silueta
-    var sp = shadowPolygon(polygon, dLat, dLng);
-    if (!sp || sp.length < 3) continue;
-
-    // Convertir a format Leaflet [[lat,lng], ...]
-    var latlngs = sp.map(function(p) { return [p.lat, p.lng]; });
-
-    try {
-      var poly = L.polygon(latlngs, {
-        fillColor: '#1a1a3a',
-        fillOpacity: 0.28,
-        color: '#1a1a3a',
-        weight: 0,
-        interactive: false,
-        pane: 'shadowPane'
-      }).addTo(map);
-      buildingPolygons.push(poly);
-    } catch(e) { /* ignorar polígons invàlids */ }
-  }
 }
 
 // ── HELPERS D'HORA ────────────────────────────────────────────────
@@ -2406,8 +2341,6 @@ function recolorPointsAsync(buildings, coveredVenuesLocal, sun) {
       lastColors = colorFingerprint();
       restoreButton();
       updateMobileStatsBar(nSol, nOmbraEdifici, nNit);
-      // Dibuixar ombres visuals si zoom >= 16
-      drawBuildingShadows();
       // No obrir sheet en mòbil — l'usuari el gestiona manualment
       setTimeout(function() { if (progBar) progBar.style.width = "0%"; }, 1500);
     }
@@ -3008,12 +2941,28 @@ var favorites = {};
 try { favorites = JSON.parse(localStorage.getItem("bcnFavorites") || "{}"); } catch(e) {}
 var toldoReports = {};
 try { toldoReports = JSON.parse(localStorage.getItem("toldoReports") || "{}"); } catch(e) {}
-
+// Capacitor Preferences override (app nativa)
+(function loadCapacitorPrefs() {
+  function tryLoad() {
+    if (!window.Capacitor || !window.Capacitor.isNativePlatform() || !window.CapacitorPreferences) return;
+    window.CapacitorPreferences.get({ key: 'bcnFavorites' }).then(function(r) {
+      if (r && r.value) try { favorites = JSON.parse(r.value); } catch(e) {}
+    });
+    window.CapacitorPreferences.get({ key: 'toldoReports' }).then(function(r) {
+      if (r && r.value) try { toldoReports = JSON.parse(r.value); } catch(e) {}
+    });
+  }
+  if (document.readyState === 'complete') tryLoad();
+  else window.addEventListener('load', tryLoad);
+})();
 var showingOnlyFavs = false;
 
 function saveFavorites() {
   var data = JSON.stringify(favorites);
   try { localStorage.setItem("bcnFavorites", data); } catch(e) {}
+  if (window.Capacitor && window.Capacitor.isNativePlatform() && window.CapacitorPreferences) {
+    window.CapacitorPreferences.set({ key: 'bcnFavorites', value: data });
+  }
 }
 
 function toggleFavorite(terrassaIdx) {
@@ -3227,6 +3176,9 @@ function reportToldoToggle(terrassaIdx) {
     d.hasToldo = false;
     delete toldoReports[d.adr];
     try { localStorage.setItem("toldoReports", JSON.stringify(toldoReports)); } catch(e) {}
+    if (window.Capacitor && window.Capacitor.isNativePlatform() && window.CapacitorPreferences) {
+      window.CapacitorPreferences.set({ key: 'toldoReports', value: JSON.stringify(toldoReports) });
+    }
     if (window.firebaseReady && window.fbDoc && window.fbUpdateDoc) {
       var tRef = window.fbDoc('terrasses', terrassaId);
       window.fbUpdateDoc(tRef, { toldo_count: window.fbIncrement(-1) }).catch(function(){});
@@ -3237,6 +3189,9 @@ function reportToldoToggle(terrassaIdx) {
     d.hasToldo = true;
     toldoReports[d.adr] = { adr:d.adr, barri:d.barri, lat:d.lat, lng:d.lng, ts:new Date().toISOString() };
     try { localStorage.setItem("toldoReports", JSON.stringify(toldoReports)); } catch(e) {}
+    if (window.Capacitor && window.Capacitor.isNativePlatform() && window.CapacitorPreferences) {
+      window.CapacitorPreferences.set({ key: 'toldoReports', value: JSON.stringify(toldoReports) });
+    }
     if (window.firebaseReady && window.fbDoc && window.fbUpdateDoc) {
       var tRef = window.fbDoc('terrasses', terrassaId);
       window.fbUpdateDoc(tRef, { toldo_count: window.fbIncrement(1) })
@@ -3527,8 +3482,11 @@ function geolocateUser() {
   if (fab) { fab.classList.add("locating"); fab.innerHTML = "\u23F3"; }
   if (btn) { btn.innerHTML = "\u23F3 Cercant..."; btn.disabled = true; }
 
+  // Capacitor Geolocation (app nativa) amb fallback web
   var geoPromise;
-  if (navigator.geolocation) {
+  if (window.Capacitor && window.Capacitor.isNativePlatform() && window.CapacitorGeolocation) {
+    geoPromise = window.CapacitorGeolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+  } else if (navigator.geolocation) {
     geoPromise = new Promise(function(resolve, reject) {
       navigator.geolocation.getCurrentPosition(resolve, reject,
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
@@ -3629,18 +3587,11 @@ function updateMobileTimeDisplay() {
 // GOOGLE ANALYTICS TRACKING
 // ================================================================
 function trackEvent(eventName, params) {
-  params = params || {};
-  // Anonimitzar coordenades a 2 decimals (~1km de precisió)
+  if (typeof gtag === "undefined") return;
+  // Anonimitzar coordenades a 2 decimals (~1km de precisio)
   if (params.lat) params.lat = Math.round(params.lat * 100) / 100;
   if (params.lng) params.lng = Math.round(params.lng * 100) / 100;
-  // Firebase Analytics (principal)
-  if (typeof window.fbLog === 'function') {
-    window.fbLog(eventName, params);
-  }
-  // gtag com a fallback si existeix
-  if (typeof gtag === 'function') {
-    gtag('event', eventName, params);
-  }
+  gtag("event", eventName, params);
 }
 
 
@@ -3770,10 +3721,6 @@ function initMap() {
     // Preferir Canvas renderer (molt més ràpid per milers de punts)
     preferCanvas: true
   });
-  // Crear pane d'ombres PER SOTA dels marcadors (zIndex 200 < 400 marcadors)
-  map.createPane('shadowPane');
-  map.getPane('shadowPane').style.zIndex = 200;
-  map.getPane('shadowPane').style.pointerEvents = 'none';
   L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", {
     attribution:"&copy; CartoDB &copy; OSM", maxZoom:19, subdomains:"abcd"
   }).addTo(map);
@@ -3789,15 +3736,8 @@ function initMap() {
   layerGroup = L.layerGroup().addTo(map);
 
   // Shadow engine viewport listeners
-  map.on("moveend", function() {
-    onViewportChange();
-    if (map.getZoom() >= 16) drawBuildingShadows();
-  });
-  map.on("zoomend", function() {
-    onViewportChange();
-    updateRadiusForZoom();
-    drawBuildingShadows(); // actualitzar ombres visuals en canviar zoom
-  });
+  map.on("moveend", onViewportChange);
+  map.on("zoomend", function() { onViewportChange(); updateRadiusForZoom(); });
   map.on("click", function() { hideResults(); restoreHighlights(); });
 
   allData.forEach(function(d, i) {
@@ -4070,7 +4010,7 @@ function showPopup(d, marker, terrassaIdx) {
       '<div class="popup-reviews-header">'+
         '<div class="popup-reviews-avg" id="reviews-avg-'+terrassaIdx+'">&#x2B50; Reviews</div>'+
         '<button class="popup-btn-review" id="review-open-btn-'+terrassaIdx+'" '+
-          'onclick="openReviewModal('+terrassaIdx+')">'+
+          'onclick="openReviewModal('+terrassaIdx+')" style="display:none">'+
           '&#x270F;&#xFE0F; Escriure review</button>'+
       '</div>'+
       '<div class="popup-reviews-list" id="reviews-list-'+terrassaIdx+'">'+
@@ -4108,11 +4048,22 @@ function showPopup(d, marker, terrassaIdx) {
 
   loadToldoCount(terrassaIdx, d);
   loadReviews(terrassaIdx, d);
+  if (window.currentUser) {
+    var rb = document.getElementById("review-open-btn-"+terrassaIdx);
+    if (rb) rb.style.display = "";
+  }
 
   trackEvent("click_terrassa", {
     nom: d.nom||d.adr, adr: d.adr, barri: d.barri,
     lat: d.lat, lng: d.lng, estat: d.state||"pendent"
   });
+  if (window.firebaseReady && window.fbDoc && window.fbUpdateDoc && window.fbIncrement) {
+    var _t = d.lat.toFixed(6)+'_'+d.lng.toFixed(6);
+    var _r = window.fbDoc('stats_clicks', _t);
+    window.fbUpdateDoc(_r, {clicks: window.fbIncrement(1)}).catch(function() {
+      window.fbSetDoc && window.fbSetDoc(_r, {nom:d.nom||d.adr||'',adr:d.adr||'',barri:d.barri||'',lat:d.lat,lng:d.lng,clicks:1});
+    });
+  }
 
   fetchVenueName(d.nom||"", d.lat, d.lng, popupId);
 }
@@ -4287,21 +4238,17 @@ function initControls() {
       <div class="auth-body">
         <div class="auth-subtitle">&#x1F464; Entra per guardar reviews i favorits</div>
         <div class="auth-error" id="auth-error-msg"></div>
-        <div id="g_id_onload"
-          data-client_id="552671690419-nnif3v7etinh9pp18q2hdl7vltkabdoc.apps.googleusercontent.com"
-          data-callback="handleGoogleCredential"
-          data-auto_prompt="false">
-        </div>
-        <div class="g_id_signin"
-          data-type="standard"
-          data-size="large"
-          data-theme="outline"
-          data-text="continue_with"
-          data-shape="rectangular"
-          data-logo_alignment="left"
-          data-width="320"
-          data-locale="ca">
-        </div>
+        <button class="auth-social-btn google" onclick="handleLoginGoogle()">
+          <span class="auth-social-icon">
+            <svg width="16" height="16" viewBox="0 0 48 48">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+            </svg>
+          </span>
+          Continua amb Google
+        </button>
         <div class="auth-divider">o b&eacute;</div>
         <div id="auth-email-form">
           <label class="auth-label">Correu electr&ograve;nic:</label>
@@ -4309,10 +4256,7 @@ function initControls() {
           <label class="auth-label">Contrasenya:</label>
           <input class="auth-input" type="password" id="auth-password" autocomplete="current-password">
           <button class="auth-primary-btn" id="auth-email-btn" onclick="handleLoginEmail()">Entrar</button>
-          <div class="auth-switch" style="display:flex;justify-content:space-between;align-items:center">
-            <span>No tens compte? <a onclick="switchToRegister()">Registra't</a></span>
-            <a onclick="handleForgotPassword()" style="font-size:11px;color:#2154b8;cursor:pointer;text-decoration:underline">Contrasenya oblidada?</a>
-          </div>
+          <div class="auth-switch">No tens compte? <a onclick="switchToRegister()">Registra't</a></div>
         </div>
         <div id="auth-register-form" style="display:none">
           <label class="auth-label">El teu nom:</label>
@@ -4417,15 +4361,66 @@ function initControls() {
   }
   function handleLoginGoogle() {
     clearAuthError();
-    if (!window.loginGoogle) { showAuthError('Firebase no disponible.'); return; }
-    // signInWithRedirect recarrega la pàgina: NO encadenar .then()/.catch()
-    // El resultat es captura a getRedirectResult() quan la pàgina torna a carregar
-    window.loginGoogle();
+    var isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    if (isNative) {
+      // Plugin natiu Capacitor Firebase — no usa WebView ni Chrome extern
+      if (!window.CapacitorFirebaseAuthentication) {
+        showAuthError('Plugin natiu no disponible. Fes sync i torna a compilar.');
+        return;
+      }
+      window.CapacitorFirebaseAuthentication.signInWithGoogle()
+        .then(function(result) {
+          // Obtenir credencial Firebase des del resultat natiu
+          return import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js')
+            .then(function(m) {
+              var credential = m.GoogleAuthProvider.credential(
+                result.credential && result.credential.idToken
+              );
+              return m.signInWithCredential(window.firebaseAuth, credential);
+            });
+        })
+        .then(function() { closeAuthModal(); })
+        .catch(function(e) {
+          if (e.code !== 'auth/cancelled-popup-request' && e.message !== 'cancelled') {
+            showAuthError(authErrorMsg(e.code) || e.message);
+          }
+        });
+    } else {
+      // Web: signInWithRedirect — la pàgina es recarregarà i getRedirectResult recollirà el resultat
+      if (!window.loginGoogle) { showAuthError('Firebase no disponible.'); return; }
+      window.loginGoogle().catch(function(e){ showAuthError(authErrorMsg(e.code)); });
+    }
   }
   function handleLoginApple() {
     clearAuthError();
-    if (!window.loginApple) { showAuthError('Firebase no disponible.'); return; }
-    window.loginApple();
+    var isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    if (isNative) {
+      if (!window.CapacitorFirebaseAuthentication) {
+        showAuthError('Plugin natiu no disponible.');
+        return;
+      }
+      window.CapacitorFirebaseAuthentication.signInWithApple()
+        .then(function(result) {
+          return import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js')
+            .then(function(m) {
+              var provider = new m.OAuthProvider('apple.com');
+              var credential = provider.credential({
+                idToken: result.credential && result.credential.idToken,
+                rawNonce: result.credential && result.credential.nonce
+              });
+              return m.signInWithCredential(window.firebaseAuth, credential);
+            });
+        })
+        .then(function() { closeAuthModal(); })
+        .catch(function(e) {
+          if (e.code !== 'auth/cancelled-popup-request' && e.message !== 'cancelled') {
+            showAuthError(authErrorMsg(e.code) || e.message);
+          }
+        });
+    } else {
+      if (!window.loginApple) { showAuthError('Firebase no disponible.'); return; }
+      window.loginApple().catch(function(e){ showAuthError(authErrorMsg(e.code)); });
+    }
   }
   function handleLoginEmail() {
     var email = document.getElementById('auth-email').value.trim();
@@ -4508,57 +4503,6 @@ function initControls() {
       if (menuBtn) menuBtn.classList.remove('logged-in');
       if (fab) { fab.classList.remove('logged-in'); fab.innerHTML='&#x1F464;<img id="auth-fab-avatar" src="" style="display:none">'; }
     }
-    updateSidebarSession(user);
-  }
-
-  function updateSidebarSession(user) {
-    var out = document.getElementById('session-logged-out');
-    var inn = document.getElementById('session-logged-in');
-    if (!out || !inn) return;
-    if (user) {
-      out.style.display = 'none';
-      inn.style.display = 'block';
-      // Avatar
-      var av = document.getElementById('sidebar-avatar');
-      if (av) {
-        if (user.photoURL) {
-          av.innerHTML = '<img src="'+user.photoURL+'" style="width:100%;height:100%;object-fit:cover" alt="Avatar">';
-        } else {
-          av.textContent = (user.displayName||user.email||'?').charAt(0).toUpperCase();
-        }
-      }
-      var nm = document.getElementById('sidebar-name');
-      if (nm) nm.textContent = user.displayName || 'Usuari';
-      var em = document.getElementById('sidebar-email');
-      if (em) em.textContent = user.email || '';
-      // Stats
-      var sf = document.getElementById('sidebar-stat-favs');
-      var sr = document.getElementById('sidebar-stat-reviews');
-      var st = document.getElementById('sidebar-stat-toldos');
-      if (sf) sf.textContent = Object.keys(window.favorites||{}).length;
-      if (st) st.textContent = Object.keys(window.toldoReports||{}).length;
-      if (sr) sr.textContent = '—';
-    } else {
-      out.style.display = 'block';
-      inn.style.display = 'none';
-    }
-  }
-
-  function handleForgotPassword() {
-    var email = document.getElementById('auth-email').value.trim();
-    if (!email) {
-      showAuthError('Escriu el teu correu primer.');
-      return;
-    }
-    if (!window.firebaseAuth) { showAuthError('Firebase no disponible.'); return; }
-    import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js')
-      .then(function(m) { return m.sendPasswordResetEmail(window.firebaseAuth, email); })
-      .then(function() {
-        showAuthError('✅ T\'hem enviat un correu per restablir la contrasenya.');
-      })
-      .catch(function(e) {
-        showAuthError(authErrorMsg(e.code));
-      });
   }
   </script>
 
@@ -4598,7 +4542,7 @@ function initControls() {
           <button class="review-tag-btn" data-tag="te_menjar" onclick="toggleReviewTag(this)">🥗 Té menjar</button>
           <button class="review-tag-btn" data-tag="animada" onclick="toggleReviewTag(this)">👥 Animada</button>
         </div>
-        <textarea id="review-text" style="display:none"></textarea>
+        <!-- Comentari ocult temporalment — es mostren només tags -->
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 8px;background:#f0f8f0;border:1px solid #b8d8c0;">
           <input type="checkbox" id="review-has-toldo" style="width:16px;height:16px;cursor:pointer;accent-color:#2e7d32">
           <label for="review-has-toldo" style="font-size:11px;cursor:pointer;color:#1a4a1e;font-weight:bold;">
@@ -5175,6 +5119,105 @@ function initControls() {
       closeWelcome();
     }
   };
+  </script>
+
+  <div id="top5-sheet-bg" onclick="closeTop5Sheet()"></div>
+  <div id="top5-sheet">
+    <div id="top5-sheet-handle">
+      <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;width:40px">
+        <div id="top5-sheet-drag"></div>
+      </div>
+      <div id="top5-sheet-title">🏆 Top 5 Terrasses més populars</div>
+      <button id="top5-close-btn" onclick="closeTop5Sheet()">✕</button>
+    </div>
+    <div id="top5-sheet-content">
+      <div class="top5s-loading">Carregant...</div>
+    </div>
+  </div>
+
+  <script>
+  var TOP5_LS = 'tbcn_top5_seen';
+  var EMOJIS5 = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+
+  function checkTop5Badge() {
+    var fab = document.getElementById('mobile-fab');
+    var badge = document.getElementById('top5-fab-badge');
+    if (!fab || !badge) return;
+    var last = localStorage.getItem(TOP5_LS);
+    var show = !last || (Date.now() - parseInt(last)) > 86400000;
+    fab.classList.toggle('top5-updated', show);
+    badge.style.display = show ? 'block' : 'none';
+  }
+
+  function markTop5Seen() {
+    localStorage.setItem(TOP5_LS, Date.now().toString());
+    var fab = document.getElementById('mobile-fab');
+    var badge = document.getElementById('top5-fab-badge');
+    if (fab) fab.classList.remove('top5-updated');
+    if (badge) badge.style.display = 'none';
+  }
+
+  function openTop5Sheet() {
+    markTop5Seen();
+    var sheet = document.getElementById('top5-sheet');
+    var bg = document.getElementById('top5-sheet-bg');
+    if (sheet) sheet.classList.add('open');
+    if (bg) bg.classList.add('open');
+    loadTop5Mobile();
+  }
+
+  function closeTop5Sheet() {
+    var sheet = document.getElementById('top5-sheet');
+    var bg = document.getElementById('top5-sheet-bg');
+    if (sheet) {
+      sheet.style.transform = 'translateY(100%)';
+      setTimeout(function() { sheet.classList.remove('open'); sheet.style.transform = ''; }, 300);
+    }
+    if (bg) bg.classList.remove('open');
+  }
+
+  function loadTop5Mobile() {
+    var c = document.getElementById('top5-sheet-content');
+    if (!c) return;
+    c.innerHTML = '<div class="top5s-loading">Carregant...</div>';
+    if (!window.firebaseReady || !window.fbCollection) {
+      c.innerHTML = '<div class="top5s-loading">Firebase no disponible</div>'; return;
+    }
+    import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js')
+      .then(function(m) {
+        var q = m.query(window.fbCollection('stats_clicks'), m.orderBy('clicks','desc'), m.limit(5));
+        return m.getDocs(q);
+      })
+      .then(function(snap) {
+        if (snap.empty) { c.innerHTML = '<div class="top5s-loading">Explora terrasses per generar el rànquing!</div>'; return; }
+        var html = ''; var i = 0;
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          html += '<div class="top5s-item" onclick="goToTop5(' + d.lat + ',' + d.lng + ')">' +
+            '<div class="top5s-rank">' + EMOJIS5[i] + '</div>' +
+            '<div class="top5s-info"><div class="top5s-nom">' + (d.nom||d.adr||'Terrassa') + '</div>' +
+            (d.barri ? '<div class="top5s-barri">' + d.barri + '</div>' : '') + '</div>' +
+            '<div class="top5s-clicks">' + (d.clicks||0) + ' visites</div></div>';
+          i++;
+        });
+        c.innerHTML = html;
+      })
+      .catch(function() { c.innerHTML = '<div class="top5s-loading" style="color:#c00">Error carregant</div>'; });
+  }
+
+  function goToTop5(lat, lng) {
+    closeTop5Sheet();
+    if (!map || !allData) return;
+    map.setView([lat, lng], 17);
+    for (var i = 0; i < allData.length; i++) {
+      if (Math.abs(allData[i].lat - lat) < 0.0001 && Math.abs(allData[i].lng - lng) < 0.0001) {
+        setTimeout(function(idx){ showPopup(allData[idx], markers[idx], idx); }.bind(null, i), 600);
+        break;
+      }
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() { setTimeout(checkTop5Badge, 800); });
   </script>
 </body>
 </html>
