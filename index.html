@@ -563,10 +563,26 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
 }
 
 
-/* FAB Ajustos — blau, més avall */
+/* FAB Top5 — vermell parpellejant */
 #mobile-fab {
-  background: linear-gradient(135deg, #2154b8, #4a7fd4);
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
   bottom: 122px;
+  right: 16px;
+  position: fixed;
+  overflow: visible;
+}
+#mobile-fab.top5-updated {
+  animation: top5Pulse 1.5s ease-in-out infinite;
+}
+@keyframes top5Pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.7), 0 4px 12px rgba(0,0,0,0.3); }
+  50% { box-shadow: 0 0 0 10px rgba(231,76,60,0), 0 4px 12px rgba(0,0,0,0.3); }
+}
+#top5-fab-badge {
+  position: absolute; top: -3px; right: -3px;
+  width: 13px; height: 13px;
+  background: #ff1744; border: 2px solid white; border-radius: 50%;
+  display: none;
 }
 /* FAB Favorits — vermell/rosa, sobre el d'ajustos */
 #mobile-fab-fav {
@@ -1466,6 +1482,38 @@ body {
 }
 #contact-mobile-fab:active { transform: scale(.92); }
 @media (max-width: 700px) { #contact-mobile-fab { display: flex !important; } }
+
+/* ══ TOP5 BOTTOM SHEET (mòbil) ═══════════════════════════ */
+#top5-sheet {
+  display: none; position: fixed;
+  bottom: 0; left: 0; right: 0; z-index: 8600;
+  background: white; border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.25);
+  max-height: 70vh; overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform .3s cubic-bezier(0.32,0.72,0,1);
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+#top5-sheet.open { display: block; transform: translateY(0); }
+#top5-sheet-handle {
+  display: flex; align-items: center; padding: 10px 14px 8px;
+  border-bottom: 1px solid #eee; position: sticky; top: 0;
+  background: white; border-radius: 20px 20px 0 0; gap: 8px;
+}
+#top5-sheet-drag { width: 40px; height: 5px; background: #ddd; border-radius: 3px; }
+#top5-sheet-title { flex:1; font-family: var(--font); font-weight: bold; font-size: 13px; color: #c0392b; }
+#top5-close-btn { width: 30px; height: 30px; border-radius: 50%; background: #fdecea; border: none; color: #c0392b; font-size: 14px; cursor: pointer; }
+#top5-sheet-content { padding: 4px 0 8px; }
+.top5s-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid #f5f5f5; cursor: pointer; }
+.top5s-item:last-child { border-bottom: none; }
+.top5s-item:active { background: #f0f4ff; }
+.top5s-rank { font-size: 26px; min-width: 34px; text-align: center; flex-shrink: 0; }
+.top5s-info { flex: 1; min-width: 0; }
+.top5s-nom { font-family: var(--font); font-weight: bold; font-size: 13px; color: #002060; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top5s-barri { font-size: 11px; color: #888; margin-top: 2px; }
+.top5s-loading { padding: 20px; text-align: center; font-size: 12px; color: #aaa; font-style: italic; }
+#top5-sheet-bg { display: none; position: fixed; inset: 0; z-index: 8599; background: rgba(0,0,0,0.3); }
+#top5-sheet-bg.open { display: block; }
 </style>
 
 <!-- ===== FIREBASE SDK ===== -->
@@ -1816,8 +1864,10 @@ body {
 
     <!-- FAB mòbil per obrir el panell d'ajustos -->
     <!-- FAB Ajustos (ocult en mòbil) -->
-    <button id="mobile-fab" class="mobile-fab-btn" onclick="toggleSheet()" title="Ajustos" style="display:none">
-      &#x2699;&#xFE0F;
+    <!-- FAB Top5 -->
+    <button id="mobile-fab" class="mobile-fab-btn top5-updated" onclick="openTop5Sheet()" title="Top 5">
+      🏆
+      <div id="top5-fab-badge"></div>
     </button>
 
     <!-- FAB Geoloc -->
@@ -5288,6 +5338,19 @@ function initControls() {
   <!-- FAB Contacte mòbil -->
   <button id="contact-mobile-fab" onclick="openContact()" title="Contacte">✉️</button>
 
+  <!-- TOP5 BOTTOM SHEET -->
+  <div id="top5-sheet-bg" onclick="closeTop5Sheet()"></div>
+  <div id="top5-sheet">
+    <div id="top5-sheet-handle">
+      <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 40px">
+        <div id="top5-sheet-drag"></div>
+      </div>
+      <div id="top5-sheet-title">🏆 Top 5 Terrasses més populars</div>
+      <button id="top5-close-btn" onclick="closeTop5Sheet()">✕</button>
+    </div>
+    <div id="top5-sheet-content"><div class="top5s-loading">Carregant...</div></div>
+  </div>
+
   <!-- MODAL CONTACTE -->
   <div id="contact-overlay" onclick="if(event.target===this)closeContact()">
     <div id="contact-panel">
@@ -5312,6 +5375,69 @@ function initControls() {
   </div>
 
   <script>
+  // ══ TOP5 FAB MÒBIL ════════════════════════════════════════
+  var TOP5_LS = 'tbcn_top5_seen';
+  var EMOJIS5M = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+
+  function checkTop5Badge() {
+    var fab = document.getElementById('mobile-fab');
+    var badge = document.getElementById('top5-fab-badge');
+    if (!fab || !badge) return;
+    var last = localStorage.getItem(TOP5_LS);
+    var show = !last || (Date.now()-parseInt(last)) > 86400000;
+    fab.classList.toggle('top5-updated', show);
+    badge.style.display = show ? 'block' : 'none';
+  }
+  function markTop5Seen() {
+    localStorage.setItem(TOP5_LS, Date.now().toString());
+    var fab = document.getElementById('mobile-fab');
+    var badge = document.getElementById('top5-fab-badge');
+    if (fab) fab.classList.remove('top5-updated');
+    if (badge) badge.style.display = 'none';
+  }
+  function openTop5Sheet() {
+    markTop5Seen();
+    document.getElementById('top5-sheet').classList.add('open');
+    document.getElementById('top5-sheet-bg').classList.add('open');
+    loadTop5Mobile();
+  }
+  function closeTop5Sheet() {
+    var sheet = document.getElementById('top5-sheet');
+    var bg = document.getElementById('top5-sheet-bg');
+    sheet.style.transform = 'translateY(100%)';
+    setTimeout(function(){ sheet.classList.remove('open'); sheet.style.transform=''; }, 300);
+    bg.classList.remove('open');
+  }
+  function loadTop5Mobile() {
+    var c = document.getElementById('top5-sheet-content');
+    if (!c) return;
+    c.innerHTML = '<div class="top5s-loading">Carregant...</div>';
+    if (!window.firebaseReady || !window.fbCollection) {
+      c.innerHTML = '<div class="top5s-loading">Firebase no disponible</div>'; return;
+    }
+    import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js')
+      .then(function(m) {
+        var q = m.query(window.fbCollection('stats_clicks'), m.orderBy('clicks','desc'), m.limit(5));
+        return m.getDocs(q);
+      })
+      .then(function(snap) {
+        if (snap.empty) { c.innerHTML = '<div class="top5s-loading">Explora terrasses!</div>'; return; }
+        var html = ''; var i = 0;
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          html += '<div class="top5s-item" onclick="goToTop5Web('+d.lat+','+d.lng+')">' +
+            '<div class="top5s-rank">'+EMOJIS5M[i]+'</div>' +
+            '<div class="top5s-info"><div class="top5s-nom">'+(d.nom||d.adr||'Terrassa')+'</div>' +
+            (d.barri?'<div class="top5s-barri">'+d.barri+'</div>':'')+
+            '</div></div>';
+          i++;
+        });
+        c.innerHTML = html;
+      })
+      .catch(function() { c.innerHTML = '<div class="top5s-loading" style="color:#c00">Error carregant</div>'; });
+  }
+  document.addEventListener('DOMContentLoaded', function() { setTimeout(checkTop5Badge, 800); });
+
   // ══ CONTACTE ══════════════════════════════════════════════
   function openContact() {
     var ov = document.getElementById('contact-overlay');
