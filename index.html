@@ -3927,8 +3927,8 @@ function initMap() {
   map.createPane('shadowPane');
   map.getPane('shadowPane').style.zIndex = 200;
   map.getPane('shadowPane').style.pointerEvents = 'none';
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", {
-    attribution:"&copy; CartoDB &copy; OSM", maxZoom:19, subdomains:"abcd"
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution:"&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors", maxZoom:19, subdomains:"abc"
   }).addTo(map);
 
   // Canvas renderer únic per a tots els markers — 1 sol element DOM
